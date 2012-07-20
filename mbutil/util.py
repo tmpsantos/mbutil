@@ -144,17 +144,19 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     else:
         mbtiles_setup(cur)
 
-        image_format = 'png'
-        grid_warning = True
-        try:
-            metadata = json.load(open(os.path.join(directory_path, 'metadata.json'), 'r'))
-            image_format = metadata.get('format', 'png')
+    image_format = 'png'
+    grid_warning = True
+    try:
+        metadata = json.load(open(os.path.join(directory_path, 'metadata.json'), 'r'))
+        image_format = metadata.get('format', 'png')
+        # TODO: Check that the old and new image formats are the same
+        if not import_into_existing_mbtiles:
             for name, value in metadata.items():
                 cur.execute('insert into metadata (name, value) values (?, ?)',
                         (name, value))
             logger.info('metadata from metadata.json restored')
-        except IOError:
-            logger.warning('metadata.json not found')
+    except IOError:
+        logger.warning('metadata.json not found')
 
     count = 0
     start_time = time.time()
