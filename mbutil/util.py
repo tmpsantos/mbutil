@@ -175,11 +175,19 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                                     m = hashlib.md5()
                                     m.update(tile_data)
                                     tile_id = m.hexdigest()
-                                    cur.execute("""insert into images (tile_id, tile_data) values (?, ?);""",
-                                        (tile_id, sqlite3.Binary(tile_data)))
-                                    cur.execute("""insert into map (zoom_level, tile_column, tile_row, tile_id)
-                                        values (?, ?, ?, ?);""",
-                                        (z, x, y.split('.')[0], tile_id))
+
+                                    try:
+                                        cur.execute("""insert into images (tile_id, tile_data) values (?, ?);""",
+                                            (tile_id, sqlite3.Binary(tile_data)))
+                                    except sqlite3.IntegrityError:
+                                        pass
+
+                                    try:
+                                        cur.execute("""insert into map (zoom_level, tile_column, tile_row, tile_id)
+                                            values (?, ?, ?, ?);""",
+                                            (z, x, y.split('.')[0], tile_id))
+                                    except sqlite3.IntegrityError:
+                                        pass
                                 else:
                                     cur.execute("""insert into tiles (zoom_level,
                                         tile_column, tile_row, tile_data) values
