@@ -200,8 +200,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                                 count = count + 1
                                 if (count % 100) == 0:
                                     for c in msg: sys.stdout.write(chr(8))
-                                    msg = "%s tiles inserted (%d tiles/sec)" % (count, count / (time.time() - start_time))
-                                    sys.stdout.write(msg)
+                                    logger.debug("%s tiles inserted (%d tiles/sec)" % (count, count / (time.time() - start_time)))
                             elif (y.endswith('grid.json')):
                                 if grid_warning:
                                     logger.warning('grid.json interactivity import not yet supported\n')

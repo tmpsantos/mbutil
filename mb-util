@@ -32,12 +32,19 @@ if __name__ == '__main__':
         type='string',
         default='xyz')
 
+    parser.add_option("-q", "--quiet",
+        action="store_true", dest="quiet", default=False,
+        help="don't print status messages to stdout")
+
     (options, args) = parser.parse_args()
 
     # Transfer operations
     if len(args) != 2:
         parser.print_help()
         sys.exit(1)
+
+    if options.quiet:
+        logging.getLogger().setLevel(logging.ERROR)
 
     if os.path.isfile(args[0]) and os.path.exists(args[1]):
         sys.stderr.write('To export MBTiles to disk, specify a directory that does not yet exist\n')
