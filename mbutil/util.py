@@ -55,11 +55,13 @@ def compression_prepare(cur, con):
         tile_id VARCHAR(256));
     """)
 
-def optimize_database(cur):
+def optimize_database(cur, skip_vacuum):
     logger.debug('analyzing db')
     cur.execute("""ANALYZE;""")
-    logger.debug('cleaning db')
-    cur.execute("""VACUUM;""")
+
+    if not skip_vacuum:
+        logger.debug('cleaning db')
+        cur.execute("""VACUUM;""")
 
 def compression_do(cur, con, chunk):
     overlapping = 0
@@ -205,7 +207,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                                     logger.warning('grid.json interactivity import not yet supported\n')
                                     grid_warning= False
     logger.debug('tiles inserted.')
-    optimize_database(con)
+    optimize_database(con, import_into_existing_mbtiles)
 
 def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     logger.debug("Exporting MBTiles to disk")
