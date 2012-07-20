@@ -6,7 +6,7 @@
 # (c) Development Seed 2012
 # Licensed under BSD
 
-import sqlite3, uuid, sys, logging, time, os, json, zlib
+import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -129,21 +129,32 @@ def compression_finalize(cur):
 def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     logger.info("Importing disk to MBTiles")
     logger.debug("%s --> %s" % (directory_path, mbtiles_file))
+
+    import_into_existing_mbtiles = os.path.isfile(mbtiles_file)
+    existing_mbtiles_is_compacted = False
+
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
     optimize_connection(cur)
-    mbtiles_setup(cur)
-    image_format = 'png'
-    grid_warning = True
-    try:
-        metadata = json.load(open(os.path.join(directory_path, 'metadata.json'), 'r'))
-        image_format = metadata.get('format', 'png')
-        for name, value in metadata.items():
-            cur.execute('insert into metadata (name, value) values (?, ?)',
-                    (name, value))
-        logger.info('metadata from metadata.json restored')
-    except IOError:
-        logger.warning('metadata.json not found')
+
+    if import_into_existing_mbtiles:
+        cur.execute("select count(name) from sqlite_master where type='table' AND name='images';")
+        res = cur.fetchone()
+        existing_mbtiles_is_compacted = (res[0] > 0)
+    else:
+        mbtiles_setup(cur)
+
+        image_format = 'png'
+        grid_warning = True
+        try:
+            metadata = json.load(open(os.path.join(directory_path, 'metadata.json'), 'r'))
+            image_format = metadata.get('format', 'png')
+            for name, value in metadata.items():
+                cur.execute('insert into metadata (name, value) values (?, ?)',
+                        (name, value))
+            logger.info('metadata from metadata.json restored')
+        except IOError:
+            logger.warning('metadata.json not found')
 
     count = 0
     start_time = time.time()
@@ -156,10 +167,23 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                         for y in ys:
                             if (y.endswith(image_format)):
                                 f = open(os.path.join(r1, z, x, y), 'rb')
-                                cur.execute("""insert into tiles (zoom_level,
-                                    tile_column, tile_row, tile_data) values
-                                    (?, ?, ?, ?);""",
-                                    (z, x, y.split('.')[0], sqlite3.Binary(f.read())))
+
+                                if existing_mbtiles_is_compacted:
+                                    tile_data = f.read()
+                                    m = hashlib.md5()
+                                    m.update(tile_data)
+                                    tile_id = m.hexdigest()
+                                    cur.execute("""insert into images (tile_id, tile_data) values (?, ?)""",
+                                        tile_id, sqlite3.Binary(tile_data))
+                                    cur.execute("""insert into map (zoom_level, tile_column, tile_row, tile_id)
+                                        values (?, ?, ?, ?);""",
+                                        (z, x, y.split('.')[0], tile_id))
+                                else:
+                                    cur.execute("""insert into tiles (zoom_level,
+                                        tile_column, tile_row, tile_data) values
+                                        (?, ?, ?, ?);""",
+                                        (z, x, y.split('.')[0], sqlite3.Binary(f.read())))
+
                                 f.close()
                                 count = count + 1
                                 if (count % 100) == 0:
