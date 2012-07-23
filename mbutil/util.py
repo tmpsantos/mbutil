@@ -13,20 +13,6 @@ logger = logging.getLogger(__name__)
 def flip_y(zoom, y):
     return (2**zoom-1) - y
 
-def mbtiles_setup(cur):
-    cur.execute("""
-        create table tiles (
-            zoom_level integer,
-            tile_column integer,
-            tile_row integer,
-            tile_data blob);
-            """)
-    cur.execute("""create table metadata
-        (name text, value text);""")
-    cur.execute("""create unique index name on metadata (name);""")
-    cur.execute("""create unique index tile_index on tiles
-        (zoom_level, tile_column, tile_row);""")
-
 def mbtiles_connect(mbtiles_file):
     try:
         con = sqlite3.connect(mbtiles_file)
@@ -41,7 +27,7 @@ def optimize_connection(cur):
     cur.execute("""PRAGMA locking_mode=EXCLUSIVE""")
     cur.execute("""PRAGMA journal_mode=DELETE""")
 
-def compression_prepare(cur, con):
+def compression_prepare(cur):
     cur.execute("""
       CREATE TABLE if not exists images (
         tile_data blob,
@@ -54,6 +40,30 @@ def compression_prepare(cur, con):
         tile_row integer,
         tile_id VARCHAR(256));
     """)
+
+def compression_finalize(cur):
+    try:
+        cur.execute("""drop table tiles;""")
+    except sqlite3.OperationalError:
+        pass
+    cur.execute("""create view tiles as
+        select map.zoom_level as zoom_level,
+        map.tile_column as tile_column,
+        map.tile_row as tile_row,
+        images.tile_data as tile_data FROM
+        map JOIN images on images.tile_id = map.tile_id;""")
+    cur.execute("""
+          CREATE UNIQUE INDEX map_index on map
+            (zoom_level, tile_column, tile_row);""")
+    cur.execute("""
+          CREATE UNIQUE INDEX images_id on images
+            (tile_id);""")
+    cur.execute("""vacuum;""")
+    cur.execute("""analyze;""")
+
+def mbtiles_setup(cur):
+    compression_prepare(cur)
+    compression_finalize(cur)
 
 def optimize_database(cur, skip_vacuum):
     logger.debug('analyzing db')
@@ -71,6 +81,7 @@ def compression_do(cur, con, chunk):
     res = cur.fetchone()
     total_tiles = res[0]
     logging.debug("%d total tiles to fetch" % total_tiles)
+
     for i in range(total_tiles / chunk):
         logging.debug("%d / %d rounds done" % (i, (total_tiles / chunk)))
         ids = []
@@ -111,29 +122,19 @@ def compression_do(cur, con, chunk):
                 logger.debug("insert into map: %s" % (time.time() - start))
         con.commit()
 
-def compression_finalize(cur):
-    cur.execute("""drop table tiles;""")
-    cur.execute("""create view tiles as
-        select map.zoom_level as zoom_level,
-        map.tile_column as tile_column,
-        map.tile_row as tile_row,
-        images.tile_data as tile_data FROM
-        map JOIN images on images.tile_id = map.tile_id;""")
-    cur.execute("""
-          CREATE UNIQUE INDEX map_index on map
-            (zoom_level, tile_column, tile_row);""")
-    cur.execute("""
-          CREATE UNIQUE INDEX images_id on images
-            (tile_id);""")
-    cur.execute("""vacuum;""")
-    cur.execute("""analyze;""")
+def mbtiles_create(mbtiles_file, **kwargs):
+    logger.info("Creating empty MBTiles database %s" % mbtiles_file)
+    con = mbtiles_connect(mbtiles_file)
+    cur = con.cursor()
+    optimize_connection(cur)
+    mbtiles_setup(cur)
 
 def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     logger.info("Importing disk to MBTiles")
     logger.debug("%s --> %s" % (directory_path, mbtiles_file))
 
     import_into_existing_mbtiles = os.path.isfile(mbtiles_file)
-    existing_mbtiles_is_compacted = False
+    existing_mbtiles_is_compacted = True
 
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
@@ -207,6 +208,64 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                                     grid_warning= False
     logger.debug('tiles inserted.')
     optimize_database(con, import_into_existing_mbtiles)
+
+def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
+    logger.info("Merging MBTiles")
+    logger.debug("%s --> %s" % (mbtiles_file2, mbtiles_file1))
+
+    con1 = mbtiles_connect(mbtiles_file1)
+    cur1 = con1.cursor()
+    optimize_connection(cur1)
+
+    cur1.execute("select count(name) from sqlite_master where type='table' AND name='images';")
+    res = cur1.fetchone()
+    existing_mbtiles_is_compacted = (res[0] > 0)
+
+    if not existing_mbtiles_is_compacted:
+        sys.stderr.write('To merge two MBTiles, the receiver must already be compacted\n')
+        sys.exit(1)
+
+    con2 = mbtiles_connect(mbtiles_file2)
+    cur2 = con2.cursor()
+    optimize_connection(cur2)
+
+    # TODO: Check that the old and new image formats are the same
+
+    count = 0
+    start_time = time.time()
+    tiles = cur2.execute('select zoom_level, tile_column, tile_row, tile_data from tiles;')
+    t = tiles.fetchone()
+    while t:
+        z = t[0]
+        x = t[1]
+        y = t[2]
+
+        tile_data = t[3]
+        m = hashlib.md5()
+        m.update(tile_data)
+        tile_id = m.hexdigest()
+
+        try:
+            cur1.execute("""insert into images (tile_id, tile_data) values (?, ?);""",
+                (tile_id, sqlite3.Binary(tile_data)))
+        except sqlite3.IntegrityError:
+            pass
+
+        try:
+            cur1.execute("""insert into map (zoom_level, tile_column, tile_row, tile_id)
+                values (?, ?, ?, ?);""",
+                (z, x, y, tile_id))
+        except sqlite3.IntegrityError:
+            pass
+
+        count = count + 1
+        if (count % 100) == 0:
+            logger.debug("%s tiles merged (%d tiles/sec)" % (count, count / (time.time() - start_time)))
+
+        t = tiles.fetchone()
+
+    logger.debug("%s tiles merged (%d tiles/sec)" % (count, count / (time.time() - start_time)))
+    optimize_database(con1, False)
 
 def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     logger.debug("Exporting MBTiles to disk")
