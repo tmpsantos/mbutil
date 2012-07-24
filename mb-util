@@ -20,23 +20,25 @@ if __name__ == '__main__':
     Examples:
     
     Export an mbtiles file to a directory of files:
-    $ mb-util world.mbtiles tiles # tiles must not already exist
+    $ mb-util world.mbtiles tiles # tiles directory must not already exist
     
     Import a directory of tiles into an mbtiles file:
     $ mb-util tiles world.mbtiles # mbtiles file must not already exist
 
     Create an empty mbtiles file:
-    $ mbtiles empty.mbtiles
+    $ mb-util empty.mbtiles
 
     Merge two or more mbtiles files (receiver will be the first file):
-    $ mbtiles receiver.mbtiles file1.mbtiles [file2.mbtiles ...]""")
+    $ mb-util receiver.mbtiles file1.mbtiles [file2.mbtiles ...]""")
     
     parser.add_option('--scheme', dest='scheme',
-        help='''Tiling scheme for exporting tiles. Default is "xyz" (z/x/y),
-            other option is "tms" which is also z/x/y
-            but uses a flipped y coordinate''',
+        help='''Tiling scheme for exporting tiles. Default is "xyz" (z/x/y), other option is "tms" which is also z/x/y but uses a flipped y coordinate''',
         type='string',
         default='xyz')
+
+    parser.add_option("--no-vacuum",
+        action="store_true", dest="skip_vacuum", default=False,
+        help="don't VACUUM the mbtiles file after merges")
 
     parser.add_option("-q", "--quiet",
         action="store_true", dest="quiet", default=False,
@@ -80,4 +82,4 @@ if __name__ == '__main__':
             continue
         merge_mbtiles(receiving_mbtiles, other_mbtiles, **options.__dict__)
 
-    optimize_database_file(args[0])
+    optimize_database_file(args[0], options.skip_vacuum)

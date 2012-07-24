@@ -76,11 +76,11 @@ def optimize_database(cur, skip_vacuum):
         logger.debug('cleaning db')
         cur.execute("""VACUUM;""")
 
-def optimize_database_file(mbtiles_file):
+def optimize_database_file(mbtiles_file, skip_vacuum):
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
     optimize_connection(cur)
-    optimize_database(cur, False)
+    optimize_database(cur, skip_vacuum)
 
 def compression_do(cur, con, chunk):
     overlapping = 0
@@ -266,7 +266,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
             (z, x, y, tile_id))
 
         count = count + 1
-        if (count % 100) == 0:
+        if (count % 500) == 0:
             logger.debug("%s tiles merged (%d tiles/sec)" % (count, count / (time.time() - start_time)))
 
         t = tiles.fetchone()
