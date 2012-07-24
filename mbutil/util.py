@@ -271,6 +271,8 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         t = tiles.fetchone()
 
     logger.debug("%s tiles merged (%d tiles/sec)" % (count, count / (time.time() - start_time)))
+    con1.commit()
+    con1.close()
 
 def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     logger.debug("Exporting MBTiles to disk")
