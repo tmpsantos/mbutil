@@ -139,7 +139,7 @@ def mbtiles_create(mbtiles_file, **kwargs):
     mbtiles_setup(cur)
 
 def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
-    logger.info("Importing disk to MBTiles")
+    logger.debug("Importing disk to MBTiles")
     logger.debug("%s --> %s" % (directory_path, mbtiles_file))
 
     import_into_existing_mbtiles = os.path.isfile(mbtiles_file)
@@ -219,7 +219,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     optimize_database(con, import_into_existing_mbtiles)
 
 def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
-    logger.info("Merging MBTiles")
+    logger.debug("Merging MBTiles")
     logger.debug("%s --> %s" % (mbtiles_file2, mbtiles_file1))
 
     con1 = mbtiles_connect(mbtiles_file1)
