@@ -240,10 +240,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
     # TODO: Check that the old and new image formats are the same
 
-    try:
-        cur1.execute('insert into metadata (name, value) values ("format", "png")')
-    except:
-        pass
+    cur1.execute('insert or ignore into metadata (name, value) values ("format", "png")')
 
     count = 0
     start_time = time.time()
@@ -259,18 +256,14 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         m.update(tile_data)
         tile_id = m.hexdigest()
 
-        try:
-            cur1.execute("""insert into images (tile_id, tile_data) values (?, ?);""",
-                (tile_id, sqlite3.Binary(tile_data)))
-        except sqlite3.IntegrityError:
-            pass
+        # Ignore duplicates
 
-        try:
-            cur1.execute("""insert into map (zoom_level, tile_column, tile_row, tile_id)
-                values (?, ?, ?, ?);""",
-                (z, x, y, tile_id))
-        except sqlite3.IntegrityError:
-            pass
+        cur1.execute("""insert or ignore into images (tile_id, tile_data) values (?, ?);""",
+            (tile_id, sqlite3.Binary(tile_data)))
+
+        cur1.execute("""insert or ignore into map (zoom_level, tile_column, tile_row, tile_id)
+            values (?, ?, ?, ?);""",
+            (z, x, y, tile_id))
 
         count = count + 1
         if (count % 100) == 0:
