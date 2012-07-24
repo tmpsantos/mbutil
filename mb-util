@@ -9,7 +9,7 @@
 import logging, os, sys
 from optparse import OptionParser
 
-from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles
+from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database_file
 
 if __name__ == '__main__':
 
@@ -79,3 +79,5 @@ if __name__ == '__main__':
         if not os.path.isfile(other_mbtiles):
             continue
         merge_mbtiles(receiving_mbtiles, other_mbtiles, **options.__dict__)
+
+    optimize_database_file(args[0])

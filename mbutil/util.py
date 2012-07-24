@@ -73,6 +73,12 @@ def optimize_database(cur, skip_vacuum):
         logger.debug('cleaning db')
         cur.execute("""VACUUM;""")
 
+def optimize_database_file(mbtiles_file):
+    con = mbtiles_connect(mbtiles_file)
+    cur = con.cursor()
+    optimize_connection(cur)
+    optimize_database(cur, False)
+
 def compression_do(cur, con, chunk):
     overlapping = 0
     unique = 0
@@ -265,7 +271,6 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         t = tiles.fetchone()
 
     logger.debug("%s tiles merged (%d tiles/sec)" % (count, count / (time.time() - start_time)))
-    optimize_database(con1, False)
 
 def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     logger.debug("Exporting MBTiles to disk")
