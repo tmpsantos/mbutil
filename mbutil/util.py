@@ -29,17 +29,20 @@ def optimize_connection(cur):
 
 def compression_prepare(cur):
     cur.execute("""
-      CREATE TABLE if not exists images (
+        CREATE TABLE if not exists images (
         tile_data blob,
-        tile_id VARCHAR(256));
-    """)
+        tile_id VARCHAR(256));""")
     cur.execute("""
-      CREATE TABLE if not exists map (
+        CREATE TABLE if not exists map (
         zoom_level integer,
         tile_column integer,
         tile_row integer,
-        tile_id VARCHAR(256));
-    """)
+        tile_id VARCHAR(256));""")
+    cur.execute("""
+        CREATE TABLE if not exists metadata (
+        name text, value text);""")
+    cur.execute("""
+        CREATE UNIQUE INDEX name ON metadata (name);""")
 
 def compression_finalize(cur):
     try:
@@ -236,6 +239,11 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     optimize_connection(cur2)
 
     # TODO: Check that the old and new image formats are the same
+
+    try:
+        cur1.execute('insert into metadata (name, value) values ("format", "png")')
+    except:
+        pass
 
     count = 0
     start_time = time.time()
