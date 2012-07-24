@@ -75,7 +75,8 @@ if __name__ == '__main__':
     receiving_mbtiles = args[0]
     for n in range(1, len(args)):
         other_mbtiles = args[n]
-        sys.stderr.write("%d -> %s" % (n, other_mbtiles))
+        if not options.quiet:
+            sys.stderr.write("%d -> %s\n" % (n, other_mbtiles))
         if not os.path.isfile(other_mbtiles):
             continue
         merge_mbtiles(receiving_mbtiles, other_mbtiles, **options.__dict__)
