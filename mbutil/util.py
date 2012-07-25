@@ -179,6 +179,7 @@ def execute_commands_on_tile(command_list, image_format, tile_data):
     tmp_file.close()
 
     for command in command_list:
+        logger.debug("Executing command: %s" % command)
         os.system(command % (tmp_file_name))
 
     tmp_file = open(tmp_file_name, "r")
@@ -416,6 +417,11 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         z = t[0]
         x = t[1]
         y = t[2]
+        tile_data = t[3]
+
+        # Execute commands
+        if kwargs['command_list']:
+            tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data)
 
         if kwargs.get('flip_y') == True:
           y = flip_y(z, y)
@@ -424,9 +430,9 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         if not os.path.isdir(tile_dir):
             os.makedirs(tile_dir)
 
-        tile = os.path.join(tile_dir,'%s.%s' % (y,metadata.get('format', 'png')))
+        tile = os.path.join(tile_dir,'%s.%s' % (y, metadata.get('format', 'png')))
         f = open(tile, 'wb')
-        f.write(t[3])
+        f.write(tile_data)
         f.close()
 
         done = done + 1
