@@ -93,54 +93,70 @@ def optimize_database_file(mbtiles_file, skip_analyze, skip_vacuum):
     con.close()
 
 
-def compression_do(cur, con, chunk):
+def compression_do(mbtiles_file):
+    logger.debug("Compressing MBTiles database %s" % (mbtiles_file))
+
+    con = mbtiles_connect(mbtiles_file)
+    cur = con.cursor()
+    optimize_connection(cur)
+
+    cur.execute("select count(name) from sqlite_master where type='table' AND name='images';")
+    res = cur.fetchone()
+    existing_mbtiles_is_compacted = (res[0] > 0)
+
+    if existing_mbtiles_is_compacted:
+        logger.info("The mbtiles file is already compressed")
+        return
+
+    total_tiles = cur.execute("select count(zoom_level) from tiles").fetchone()[0]
+    max_rowid = cur.execute("select max(rowid) from tiles").fetchone()[0]
+
     overlapping = 0
     unique = 0
-    total = 0
-    cur.execute("select count(zoom_level) from tiles")
-    res = cur.fetchone()
-    total_tiles = res[0]
-    logging.debug("%d total tiles to fetch" % total_tiles)
+    count = 0
+    chunk = 100
+    start_time = time.time()
 
-    for i in range(total_tiles / chunk):
-        logging.debug("%d / %d rounds done" % (i, (total_tiles / chunk)))
-        ids = []
-        files = []
-        start = time.time()
-        cur.execute("""select zoom_level, tile_column, tile_row, tile_data
-            from tiles where rowid > ? and rowid <= ?""", ((i * chunk), ((i + 1) * chunk)))
-        logger.debug("select: %s" % (time.time() - start))
+    logging.debug("%d total tiles" % total_tiles)
+
+    for i in range((max_rowid / chunk) + 1):
+        cur.execute("""select zoom_level, tile_column, tile_row, tile_data from tiles where rowid > ? and rowid <= ?""",
+            ((i * chunk), ((i + 1) * chunk)))
+
         rows = cur.fetchall()
         for r in rows:
-            total = total + 1
-            if r[3] in files:
+            z = r[0]
+            x = r[1]
+            y = r[2]
+            tile_data = r[3]
+
+            # Execute commands
+            if kwargs['command_list']:
+                tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data)
+
+            m = hashlib.md5()
+            m.update(tile_data)
+            tile_id = m.hexdigest()
+
+            try:
+                cur1.execute("""insert into images (tile_id, tile_data) values (?, ?);""",
+                    (tile_id, sqlite3.Binary(tile_data)))
+            except:
                 overlapping = overlapping + 1
-                start = time.time()
-                query = """insert into map
-                    (zoom_level, tile_column, tile_row, tile_id)
-                    values (?, ?, ?, ?)"""
-                logger.debug("insert: %s" % (time.time() - start))
-                cur.execute(query, (r[0], r[1], r[2], ids[files.index(r[3])]))
             else:
                 unique = unique + 1
-                id = str(uuid.uuid4())
 
-                ids.append(id)
-                files.append(r[3])
+            cur1.execute("""replace into map (zoom_level, tile_column, tile_row, tile_id)
+                values (?, ?, ?, ?);""",
+                (z, x, y, tile_id))
 
-                start = time.time()
-                query = """insert into images
-                    (tile_id, tile_data)
-                    values (?, ?)"""
-                cur.execute(query, (str(id), sqlite3.Binary(r[3])))
-                logger.debug("insert into images: %s" % (time.time() - start))
-                start = time.time()
-                query = """replace into map
-                    (zoom_level, tile_column, tile_row, tile_id)
-                    values (?, ?, ?, ?)"""
-                cur.execute(query, (r[0], r[1], r[2], id))
-                logger.debug("insert into map: %s" % (time.time() - start))
-        con.commit()
+            count = count + 1
+            if (count % 100) == 0:
+                logger.debug("%s tiles finished, %d unique, %d duplicates (%.1f tiles/sec)" % (count, unique, overlapping, count / (time.time() - start_time)))
+
+    logger.debug("%s tiles finished, %d unique, %d duplicates (%.1f tiles/sec)" % (count, unique, overlapping, count / (time.time() - start_time)))
+    con.commit()
+    con.close()
 
 
 def mbtiles_create(mbtiles_file, **kwargs):
@@ -348,13 +364,13 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         if kwargs.get('flip_y') == True:
           y = flip_y(z, y)
 
-        m = hashlib.md5()
-        m.update(tile_data)
-        tile_id = m.hexdigest()
-
         # Execute commands
         if kwargs['command_list']:
             tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data)
+
+        m = hashlib.md5()
+        m.update(tile_data)
+        tile_id = m.hexdigest()
 
         # Update duplicates
 
