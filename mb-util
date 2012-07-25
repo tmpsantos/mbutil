@@ -9,7 +9,7 @@
 import logging, os, sys
 from optparse import OptionParser
 
-from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database_file
+from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database_file, check_mbtiles, execute_commands_on_mbtiles
 
 if __name__ == '__main__':
 
@@ -28,9 +28,26 @@ if __name__ == '__main__':
     Create an empty mbtiles file:
     $ mb-util empty.mbtiles
 
+    Execute commands on all tiles in the mbtiles file:
+    $ mb-util -e "command" world.mbtiles
+
     Merge two or more mbtiles files (receiver will be the first file):
-    $ mb-util receiver.mbtiles file1.mbtiles [file2.mbtiles ...]""")
+    $ mb-util receiver.mbtiles file1.mbtiles [file2.mbtiles ...]
+
+    Check if a mbtiles file contains all tiles at a specific zoom level:
+    $ mb-util -c [zoom level] world.mbtiles
+    """)
     
+    parser.add_option("-c", "--check",
+        dest='zoomlevel', type='int',
+        help='''Zoomlevel to check''',
+        default=None)
+
+    parser.add_option("-e", "--execute",
+        dest="command_list", type="string", metavar="COMMAND",
+        action="append", default=None,
+        help='''Commands to execute for each merged tile image. %s will be replaced with the file name.''')
+
     parser.add_option('--scheme', dest='scheme',
         help='''Tiling scheme for exporting tiles. Default is "xyz" (z/x/y), other option is "tms" which is also z/x/y but uses a flipped y coordinate''',
         type='string',
@@ -55,6 +72,20 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.ERROR)
 
     if len(args) == 1:
+        if options.zoomlevel:
+            if not os.path.isfile(args[0]):
+                sys.stderr.write('The mbtiles file to check must exist\n')
+                sys.exit(1)
+            check_mbtiles(args[0], options.zoomlevel, **options.__dict__)
+            sys.exit(0)
+
+        if options.command_list:
+            if not os.path.isfile(args[0]):
+                sys.stderr.write('The mbtiles file to execute commands on must exist\n')
+                sys.exit(1)
+            execute_commands_on_mbtiles(args[0], **options.__dict__)
+            sys.exit(0)
+
         if os.path.exists(args[0]):
             sys.stderr.write('The mbtiles file to create must not exist yet\n')
             sys.exit(1)
@@ -65,19 +96,22 @@ if __name__ == '__main__':
     if os.path.isfile(args[0]) and not os.path.exists(args[1]):
         mbtiles_file, directory_path = args
         mbtiles_to_disk(mbtiles_file, directory_path, **options.__dict__)
+        sys.exit(0)
 
     # to mbtiles
     if os.path.isdir(args[0]) and not os.path.isfile(args[0]):
         directory_path, mbtiles_file = args
         disk_to_mbtiles(directory_path, mbtiles_file, **options.__dict__)
+        sys.exit(0)
 
+    # merge mbtiles
     if not os.path.isfile(args[0]):
         mbtiles_create(args[0], **options.__dict__)
 
     receiving_mbtiles = args[0]
     for n in range(1, len(args)):
         other_mbtiles = args[n]
-        sys.stderr.write("%d -> %s" % (n, other_mbtiles))
+        sys.stderr.write("%d -> %s\n" % (n, other_mbtiles))
         if not os.path.isfile(other_mbtiles):
             continue
         merge_mbtiles(receiving_mbtiles, other_mbtiles, **options.__dict__)

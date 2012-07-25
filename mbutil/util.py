@@ -6,7 +6,7 @@
 # (c) Development Seed 2012
 # Licensed under BSD
 
-import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib
+import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +81,8 @@ def optimize_database_file(mbtiles_file, skip_vacuum):
     cur = con.cursor()
     optimize_connection(cur)
     optimize_database(cur, skip_vacuum)
+    con.commit()
+    con.close()
 
 def compression_do(cur, con, chunk):
     overlapping = 0
@@ -124,7 +126,7 @@ def compression_do(cur, con, chunk):
                 cur.execute(query, (str(id), sqlite3.Binary(r[3])))
                 logger.debug("insert into images: %s" % (time.time() - start))
                 start = time.time()
-                query = """insert into map
+                query = """replace into map
                     (zoom_level, tile_column, tile_row, tile_id)
                     values (?, ?, ?, ?)"""
                 cur.execute(query, (r[0], r[1], r[2], id))
@@ -137,6 +139,66 @@ def mbtiles_create(mbtiles_file, **kwargs):
     cur = con.cursor()
     optimize_connection(cur)
     mbtiles_setup(cur)
+    con.commit()
+    con.close()
+
+def execute_commands_on_tile(command_list, image_format, tile_data):
+    if command_list == None or tile_data == None:
+        return tile_data
+
+    tmp_file = tempfile.NamedTemporaryFile(suffix=".%s" % (image_format), prefix="tile_")
+    tmp_file.write(tile_data)
+
+    for command in command_list:
+        os.system(command % (tmp_file.name))
+
+    tmp_file.seek(0)
+    tile_data = tmp_file.read()
+    tmp_file.close()
+
+    return tile_data
+
+def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
+    logger.debug("Executing commands on MBTiles %s" % (mbtiles_file))
+    con = mbtiles_connect(mbtiles_file)
+    update_con = mbtiles_connect(mbtiles_file)
+
+    if kwargs['command_list'] == None or len(kwargs['command_list']) == 0:
+        return
+
+    count = 0
+    start_time = time.time()
+    tiles = con.execute('select tile_id, tile_data from images;')
+    t = tiles.fetchone()
+    while t:
+        tile_id = t[0]
+        tile_data = t[1]
+
+         # Execute commands
+        tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data)
+        if len(tile_data) == 0:
+            continue
+
+        m = hashlib.md5()
+        m.update(tile_data)
+        new_tile_id = m.hexdigest()
+
+        update_con.execute("""insert or ignore into images (tile_id, tile_data) values (?, ?);""",
+            (new_tile_id, sqlite3.Binary(tile_data)))
+        update_con.execute("""update map set tile_id=? where tile_id=?;""",
+            (new_tile_id, tile_id))
+        update_con.execute("""delete from images where tile_id=?;""", (tile_id))
+
+        count = count + 1
+        if (count % 100) == 0:
+            logger.debug("%s tiles finished (%d tiles/sec)" % (count, count / (time.time() - start_time)))
+
+        t = tiles.fetchone()
+
+    logger.debug("%s tiles finished (%d tiles/sec)" % (count, count / (time.time() - start_time)))
+    con.close()
+    update_con.commit()
+    update_con.close()
 
 def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     logger.info("Importing disk to MBTiles")
@@ -173,7 +235,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     count = 0
     start_time = time.time()
     msg = ""
-    for r1, zs, ignore in os.walk(directory_path):
+    for r1, zs, ignore in os.walk(os.path.join(directory_path, "tiles")):
         for z in zs:
             for r2, xs, ignore in os.walk(os.path.join(r1, z)):
                 for x in xs:
@@ -188,20 +250,14 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                                     m.update(tile_data)
                                     tile_id = m.hexdigest()
 
-                                    try:
-                                        cur.execute("""insert into images (tile_id, tile_data) values (?, ?);""",
-                                            (tile_id, sqlite3.Binary(tile_data)))
-                                    except sqlite3.IntegrityError:
-                                        pass
+                                    cur.execute("""insert or ignore into images (tile_id, tile_data) values (?, ?);""",
+                                        (tile_id, sqlite3.Binary(tile_data)))
 
-                                    try:
-                                        cur.execute("""insert into map (zoom_level, tile_column, tile_row, tile_id)
-                                            values (?, ?, ?, ?);""",
-                                            (z, x, y.split('.')[0], tile_id))
-                                    except sqlite3.IntegrityError:
-                                        pass
+                                    cur.execute("""replace into map (zoom_level, tile_column, tile_row, tile_id)
+                                        values (?, ?, ?, ?);""",
+                                        (z, x, y.split('.')[0], tile_id))
                                 else:
-                                    cur.execute("""insert into tiles (zoom_level,
+                                    cur.execute("""replace into tiles (zoom_level,
                                         tile_column, tile_row, tile_data) values
                                         (?, ?, ?, ?);""",
                                         (z, x, y.split('.')[0], sqlite3.Binary(f.read())))
@@ -217,6 +273,8 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                                     grid_warning= False
     logger.debug('tiles inserted.')
     optimize_database(con, import_into_existing_mbtiles)
+    con.commit()
+    con.close()
 
 def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     logger.info("Merging MBTiles")
@@ -250,18 +308,22 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         z = t[0]
         x = t[1]
         y = t[2]
-
         tile_data = t[3]
+
         m = hashlib.md5()
         m.update(tile_data)
         tile_id = m.hexdigest()
 
-        # Ignore duplicates
+        # Execute commands
+        if kwargs['command_list']:
+            tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data)
+
+        # Update duplicates
 
         cur1.execute("""insert or ignore into images (tile_id, tile_data) values (?, ?);""",
             (tile_id, sqlite3.Binary(tile_data)))
 
-        cur1.execute("""insert or ignore into map (zoom_level, tile_column, tile_row, tile_id)
+        cur1.execute("""replace into map (zoom_level, tile_column, tile_row, tile_id)
             values (?, ?, ?, ?);""",
             (z, x, y, tile_id))
 
@@ -274,6 +336,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     logger.debug("%s tiles merged (%d tiles/sec)" % (count, count / (time.time() - start_time)))
     con1.commit()
     con1.close()
+    con2.close()
 
 def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     logger.debug("Exporting MBTiles to disk")
@@ -285,20 +348,10 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     count = con.execute('select count(zoom_level) from tiles;').fetchone()[0]
     done = 0
     msg = ''
-    service_version = metadata.get('version', '1.0.0')
-    base_path = os.path.join(directory_path,
-                                service_version,
-                                metadata.get('name', 'layer')
-                            )
+
+    base_path = os.path.join(directory_path, "tiles")
     if not os.path.isdir(base_path):
         os.makedirs(base_path)
-
-    # if interactivity
-    formatter = metadata.get('formatter')
-    if formatter:
-        layer_json = os.path.join(base_path,'layer.json')
-        formatter_json = {"formatter":formatter}
-        open(layer_json,'w').write('grid(' + json.dumps(formatter_json) + ')')
 
     tiles = con.execute('select zoom_level, tile_column, tile_row, tile_data from tiles;')
     t = tiles.fetchone()
@@ -321,42 +374,8 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         logger.info('%s / %s tiles exported' % (done, count))
         t = tiles.fetchone()
 
-    # grids
-    done = 0
-    msg = ''
-    try:
-        count = con.execute('select count(zoom_level) from grids;').fetchone()[0]
-        grids = con.execute('select zoom_level, tile_column, tile_row, grid from grids;')
-        g = grids.fetchone()
-    except sqlite3.OperationalError:
-        g = None # no grids table
-    while g:
-        zoom_level = g[0] # z
-        tile_column = g[1] # x
-        y = g[2] # y
-        grid_data_cursor = con.execute('''select key_name, key_json FROM
-            grid_data WHERE
-            zoom_level = %(zoom_level)d and
-            tile_column = %(tile_column)d and
-            tile_row = %(y)d;''' % locals() )
-        if kwargs.get('scheme') == 'xyz':
-          y = flip_y(zoom_level,y)
-        grid_dir = os.path.join(base_path, str(zoom_level), str(tile_column))
-        if not os.path.isdir(grid_dir):
-            os.makedirs(grid_dir)
-        grid = os.path.join(grid_dir,'%s.grid.json' % (y))
-        f = open(grid, 'w')
-        grid_json = json.loads(zlib.decompress(g[3]))
-        # join up with the grid 'data' which is in pieces when stored in mbtiles file
-        grid_data = grid_data_cursor.fetchone()
-        data = {}
-        while grid_data:
-            data[grid_data[0]] = json.loads(grid_data[1])
-            grid_data = grid_data_cursor.fetchone()
-        grid_json['data'] = data
-        f.write('grid(' + json.dumps(grid_json) + ')')
-        f.close()
-        done = done + 1
-        for c in msg: sys.stdout.write(chr(8))
-        logger.info('%s / %s grids exported' % (done, count))
-        g = grids.fetchone()
+    con.close()
+
+def check_mbtiles(mbtiles_file, zoom_level, **kwargs):
+    logger.debug("Checking MBTiles file %s at zoom level %d" % (mbtiles_file, zoom_level))
+    tiles_count = (2**zoom_level)
