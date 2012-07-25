@@ -201,7 +201,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     update_con.close()
 
 def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
-    logger.info("Importing disk to MBTiles")
+    logger.debug("Importing disk to MBTiles")
     logger.debug("%s --> %s" % (directory_path, mbtiles_file))
 
     import_into_existing_mbtiles = os.path.isfile(mbtiles_file)
@@ -277,7 +277,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     con.close()
 
 def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
-    logger.info("Merging MBTiles")
+    logger.debug("Merging MBTiles")
     logger.debug("%s --> %s" % (mbtiles_file2, mbtiles_file1))
 
     con1 = mbtiles_connect(mbtiles_file1)

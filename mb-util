@@ -13,7 +13,7 @@ from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtil
 
 if __name__ == '__main__':
 
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
     parser = OptionParser(usage="""usage: %prog [options] input output
     
@@ -61,6 +61,10 @@ if __name__ == '__main__':
         action="store_true", dest="quiet", default=False,
         help="don't print status messages to stdout")
 
+    parser.add_option("-d", "--debug",
+        action="store_true", dest="debug", default=False,
+        help="print debug messages to stdout")
+
     (options, args) = parser.parse_args()
 
     # Transfer operations
@@ -70,6 +74,8 @@ if __name__ == '__main__':
 
     if options.quiet:
         logging.getLogger().setLevel(logging.ERROR)
+    elif options.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     if len(args) == 1:
         if options.zoomlevel:
@@ -111,7 +117,8 @@ if __name__ == '__main__':
     receiving_mbtiles = args[0]
     for n in range(1, len(args)):
         other_mbtiles = args[n]
-        sys.stderr.write("%d -> %s\n" % (n, other_mbtiles))
+        if not options.quiet:
+            sys.stderr.write("%d -> %s\n" % (n, other_mbtiles))
         if not os.path.isfile(other_mbtiles):
             continue
         merge_mbtiles(receiving_mbtiles, other_mbtiles, **options.__dict__)
