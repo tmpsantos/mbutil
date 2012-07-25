@@ -358,7 +358,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
         # Update duplicates
 
-        cur1.execute("""insert or ignore into images (tile_id, tile_data) values (?, ?);""",
+        cur1.execute("""replace into images (tile_id, tile_data) values (?, ?);""",
             (tile_id, sqlite3.Binary(tile_data)))
 
         cur1.execute("""replace into map (zoom_level, tile_column, tile_row, tile_id)
