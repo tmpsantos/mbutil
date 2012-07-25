@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 def flip_y(zoom, y):
     return (2**zoom-1) - y
 
+
 def mbtiles_connect(mbtiles_file):
     try:
         con = sqlite3.connect(mbtiles_file)
@@ -22,10 +23,12 @@ def mbtiles_connect(mbtiles_file):
         logger.exception(e)
         sys.exit(1)
 
+
 def optimize_connection(cur):
     cur.execute("""PRAGMA synchronous=0""")
     cur.execute("""PRAGMA locking_mode=EXCLUSIVE""")
     cur.execute("""PRAGMA journal_mode=DELETE""")
+
 
 def compression_prepare(cur):
     cur.execute("""
@@ -43,6 +46,7 @@ def compression_prepare(cur):
         name text, value text);""")
     cur.execute("""
         CREATE UNIQUE INDEX name ON metadata (name);""")
+
 
 def compression_finalize(cur):
     try:
@@ -64,25 +68,30 @@ def compression_finalize(cur):
     cur.execute("""vacuum;""")
     cur.execute("""analyze;""")
 
+
 def mbtiles_setup(cur):
     compression_prepare(cur)
     compression_finalize(cur)
 
-def optimize_database(cur, skip_vacuum):
-    logger.debug('analyzing db')
-    cur.execute("""ANALYZE;""")
+
+def optimize_database(cur, skip_analyze, skip_vacuum):
+    if not skip_analyze:
+        logger.debug('analyzing db')
+        cur.execute("""ANALYZE;""")
 
     if not skip_vacuum:
         logger.debug('cleaning db')
         cur.execute("""VACUUM;""")
 
-def optimize_database_file(mbtiles_file, skip_vacuum):
+
+def optimize_database_file(mbtiles_file, skip_analyze, skip_vacuum):
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
     optimize_connection(cur)
-    optimize_database(cur, skip_vacuum)
+    optimize_database(cur, skip_analyze, skip_vacuum)
     con.commit()
     con.close()
+
 
 def compression_do(cur, con, chunk):
     overlapping = 0
@@ -133,6 +142,7 @@ def compression_do(cur, con, chunk):
                 logger.debug("insert into map: %s" % (time.time() - start))
         con.commit()
 
+
 def mbtiles_create(mbtiles_file, **kwargs):
     logger.info("Creating empty MBTiles database %s" % mbtiles_file)
     con = mbtiles_connect(mbtiles_file)
@@ -141,6 +151,7 @@ def mbtiles_create(mbtiles_file, **kwargs):
     mbtiles_setup(cur)
     con.commit()
     con.close()
+
 
 def execute_commands_on_tile(command_list, image_format, tile_data):
     if command_list == None or tile_data == None:
@@ -161,6 +172,7 @@ def execute_commands_on_tile(command_list, image_format, tile_data):
     os.remove(tmp_file_name)
 
     return new_tile_data
+
 
 def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     logger.debug("Executing commands on MBTiles %s" % (mbtiles_file))
@@ -195,7 +207,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
             # Execute commands
             tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data)
-            if len(tile_data) > 0:
+            if tile_data and len(tile_data) > 0:
                 m = hashlib.md5()
                 m.update(tile_data)
                 new_tile_id = m.hexdigest()
@@ -217,6 +229,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     logger.debug("%s tiles finished (%.1f tiles/sec)" % (count, count / (time.time() - start_time)))
     con.commit()
     con.close()
+
 
 def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     logger.debug("Importing disk to MBTiles")
@@ -259,40 +272,44 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                 for x in xs:
                     for r2, ignore, ys in os.walk(os.path.join(r1, z, x)):
                         for y in ys:
-                            if (y.endswith(image_format)):
-                                f = open(os.path.join(r1, z, x, y), 'rb')
+                            if kwargs.get('flip_y') == True:
+                                y = flip_y(z, y)
 
-                                if existing_mbtiles_is_compacted:
-                                    tile_data = f.read()
-                                    m = hashlib.md5()
-                                    m.update(tile_data)
-                                    tile_id = m.hexdigest()
+                            f = open(os.path.join(r1, z, x, y), 'rb')
+                            tile_data = f.read()
+                            f.close()
 
-                                    cur.execute("""insert or ignore into images (tile_id, tile_data) values (?, ?);""",
-                                        (tile_id, sqlite3.Binary(tile_data)))
+                            # Execute commands
+                            if kwargs['command_list']:
+                                tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data)
 
-                                    cur.execute("""replace into map (zoom_level, tile_column, tile_row, tile_id)
-                                        values (?, ?, ?, ?);""",
-                                        (z, x, y.split('.')[0], tile_id))
-                                else:
-                                    cur.execute("""replace into tiles (zoom_level,
-                                        tile_column, tile_row, tile_data) values
-                                        (?, ?, ?, ?);""",
-                                        (z, x, y.split('.')[0], sqlite3.Binary(f.read())))
+                            if existing_mbtiles_is_compacted:
+                                m = hashlib.md5()
+                                m.update(tile_data)
+                                tile_id = m.hexdigest()
 
-                                f.close()
-                                count = count + 1
-                                if (count % 100) == 0:
-                                    for c in msg: sys.stdout.write(chr(8))
-                                    logger.debug("%s tiles inserted (%d tiles/sec)" % (count, count / (time.time() - start_time)))
-                            elif (y.endswith('grid.json')):
-                                if grid_warning:
-                                    logger.warning('grid.json interactivity import not yet supported\n')
-                                    grid_warning= False
+                                cur.execute("""insert or ignore into images (tile_id, tile_data) values (?, ?);""",
+                                    (tile_id, sqlite3.Binary(tile_data)))
+
+                                cur.execute("""replace into map (zoom_level, tile_column, tile_row, tile_id)
+                                    values (?, ?, ?, ?);""",
+                                    (z, x, y.split('.')[0], tile_id))
+                            else:
+                                cur.execute("""replace into tiles (zoom_level,
+                                    tile_column, tile_row, tile_data) values
+                                    (?, ?, ?, ?);""",
+                                    (z, x, y.split('.')[0], sqlite3.Binary(tile_data)))
+
+                            count = count + 1
+                            if (count % 100) == 0:
+                                for c in msg: sys.stdout.write(chr(8))
+                                logger.debug("%s tiles inserted (%d tiles/sec)" % (count, count / (time.time() - start_time)))
+
     logger.debug('tiles inserted.')
-    optimize_database(con, import_into_existing_mbtiles)
+    optimize_database(con, False, import_into_existing_mbtiles)
     con.commit()
     con.close()
+
 
 def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     logger.debug("Merging MBTiles")
@@ -328,6 +345,9 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         y = t[2]
         tile_data = t[3]
 
+        if kwargs.get('flip_y') == True:
+          y = flip_y(z, y)
+
         m = hashlib.md5()
         m.update(tile_data)
         tile_id = m.hexdigest()
@@ -346,26 +366,29 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
             (z, x, y, tile_id))
 
         count = count + 1
-        if (count % 500) == 0:
-            logger.debug("%s tiles merged (%d tiles/sec)" % (count, count / (time.time() - start_time)))
+        if (count % 100) == 0:
+            logger.debug("%s tiles merged (%.1f tiles/sec)" % (count, count / (time.time() - start_time)))
 
         t = tiles.fetchone()
 
-    logger.debug("%s tiles merged (%d tiles/sec)" % (count, count / (time.time() - start_time)))
+    logger.debug("%s tiles merged (%.1f tiles/sec)" % (count, count / (time.time() - start_time)))
     con1.commit()
     con1.close()
     con2.close()
 
+
 def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     logger.debug("Exporting MBTiles to disk")
     logger.debug("%s --> %s" % (mbtiles_file, directory_path))
+
     con = mbtiles_connect(mbtiles_file)
+
     os.mkdir("%s" % directory_path)
     metadata = dict(con.execute('select name, value from metadata;').fetchall())
     json.dump(metadata, open(os.path.join(directory_path, 'metadata.json'), 'w'), indent=4)
+
     count = con.execute('select count(zoom_level) from tiles;').fetchone()[0]
     done = 0
-    msg = ''
 
     base_path = os.path.join(directory_path, "tiles")
     if not os.path.isdir(base_path):
@@ -377,23 +400,28 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         z = t[0]
         x = t[1]
         y = t[2]
-        if kwargs.get('scheme') == 'xyz':
-          y = flip_y(z,y)
-          print 'flipping'
+
+        if kwargs.get('flip_y') == True:
+          y = flip_y(z, y)
+
         tile_dir = os.path.join(base_path, str(z), str(x))
         if not os.path.isdir(tile_dir):
             os.makedirs(tile_dir)
+
         tile = os.path.join(tile_dir,'%s.%s' % (y,metadata.get('format', 'png')))
         f = open(tile, 'wb')
         f.write(t[3])
         f.close()
+
         done = done + 1
-        for c in msg: sys.stdout.write(chr(8))
-        logger.info('%s / %s tiles exported' % (done, count))
+        logger.debug('%s / %s tiles exported' % (done, count))
         t = tiles.fetchone()
 
     con.close()
 
+
 def check_mbtiles(mbtiles_file, zoom_level, **kwargs):
     logger.debug("Checking MBTiles file %s at zoom level %d" % (mbtiles_file, zoom_level))
     tiles_count = (2**zoom_level)
+
+    logger.info("This does not work yet.")

@@ -40,30 +40,33 @@ if __name__ == '__main__':
     
     parser.add_option("-c", "--check",
         dest='zoomlevel', type='int',
-        help='''Zoomlevel to check''',
+        help='''Zoomlevel to check (tbd)''',
         default=None)
 
     parser.add_option("-e", "--execute",
         dest="command_list", type="string", metavar="COMMAND",
         action="append", default=None,
-        help='''Commands to execute for each merged tile image. %s will be replaced with the file name.''')
+        help='''Commands to execute for each tile image. %s will be replaced with the file name.''')
 
-    parser.add_option('--scheme', dest='scheme',
-        help='''Tiling scheme for exporting tiles. Default is "xyz" (z/x/y), other option is "tms" which is also z/x/y but uses a flipped y coordinate''',
-        type='string',
-        default='xyz')
+    parser.add_option('--flip-y', dest='flip_y',
+        help='''Flip the y tile coordinate during export/import/merge''',
+        action="store_true", default=False)
 
     parser.add_option("--no-vacuum",
         action="store_true", dest="skip_vacuum", default=False,
         help="don't VACUUM the mbtiles file after merges")
 
+    parser.add_option("--no-analyze",
+        action="store_true", dest="skip_analyze", default=False,
+        help="don't ANALYZE the mbtiles file after merges")
+
     parser.add_option("-q", "--quiet",
         action="store_true", dest="quiet", default=False,
-        help="don't print status messages to stdout")
+        help="don't print any status messages to stdout except errors")
 
     parser.add_option("-d", "--debug",
         action="store_true", dest="debug", default=False,
-        help="print debug messages to stdout")
+        help="print debug messages to stdout (exclusive to --quiet)")
 
     (options, args) = parser.parse_args()
 
@@ -78,6 +81,7 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.DEBUG)
 
     if len(args) == 1:
+        # Check the mbtiles db?
         if options.zoomlevel:
             if not os.path.isfile(args[0]):
                 sys.stderr.write('The mbtiles file to check must exist\n')
@@ -85,33 +89,35 @@ if __name__ == '__main__':
             check_mbtiles(args[0], options.zoomlevel, **options.__dict__)
             sys.exit(0)
 
+        # Execute commands on the tiles in the mbtiles db?
         if options.command_list:
             if not os.path.isfile(args[0]):
                 sys.stderr.write('The mbtiles file to execute commands on must exist\n')
                 sys.exit(1)
             execute_commands_on_mbtiles(args[0], **options.__dict__)
-            optimize_database_file(args[0], options.skip_vacuum)
+            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum)
             sys.exit(0)
 
+        # Create an empty mbtiles db?
         if os.path.exists(args[0]):
             sys.stderr.write('The mbtiles file to create must not exist yet\n')
             sys.exit(1)
         mbtiles_create(args[0], **options.__dict__)
         sys.exit(0)
 
-    # to disk
+    # export from mbtiles to disk
     if os.path.isfile(args[0]) and not os.path.exists(args[1]):
         mbtiles_file, directory_path = args
         mbtiles_to_disk(mbtiles_file, directory_path, **options.__dict__)
         sys.exit(0)
 
-    # to mbtiles
+    # import from disk to mbtiles
     if os.path.isdir(args[0]) and not os.path.isfile(args[0]):
         directory_path, mbtiles_file = args
         disk_to_mbtiles(directory_path, mbtiles_file, **options.__dict__)
         sys.exit(0)
 
-    # merge mbtiles
+    # merge mbtiles files
     if not os.path.isfile(args[0]):
         mbtiles_create(args[0], **options.__dict__)
 
@@ -124,4 +130,4 @@ if __name__ == '__main__':
             continue
         merge_mbtiles(receiving_mbtiles, other_mbtiles, **options.__dict__)
 
-    optimize_database_file(args[0], options.skip_vacuum)
+    optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum)
