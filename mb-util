@@ -90,6 +90,7 @@ if __name__ == '__main__':
                 sys.stderr.write('The mbtiles file to execute commands on must exist\n')
                 sys.exit(1)
             execute_commands_on_mbtiles(args[0], **options.__dict__)
+            optimize_database_file(args[0], options.skip_vacuum)
             sys.exit(0)
 
         if os.path.exists(args[0]):

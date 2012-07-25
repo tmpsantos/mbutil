@@ -146,59 +146,77 @@ def execute_commands_on_tile(command_list, image_format, tile_data):
     if command_list == None or tile_data == None:
         return tile_data
 
-    tmp_file = tempfile.NamedTemporaryFile(suffix=".%s" % (image_format), prefix="tile_")
+    tmp_file_fd, tmp_file_name = tempfile.mkstemp(suffix=".%s" % (image_format), prefix="tile_")
+    tmp_file = os.fdopen(tmp_file_fd, "w")
     tmp_file.write(tile_data)
-
-    for command in command_list:
-        os.system(command % (tmp_file.name))
-
-    tmp_file.seek(0)
-    tile_data = tmp_file.read()
     tmp_file.close()
 
-    return tile_data
+    for command in command_list:
+        os.system(command % (tmp_file_name))
+
+    tmp_file = open(tmp_file_name, "r")
+    new_tile_data = tmp_file.read()
+    tmp_file.close()
+
+    os.remove(tmp_file_name)
+
+    return new_tile_data
 
 def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     logger.debug("Executing commands on MBTiles %s" % (mbtiles_file))
-    con = mbtiles_connect(mbtiles_file)
-    update_con = mbtiles_connect(mbtiles_file)
 
     if kwargs['command_list'] == None or len(kwargs['command_list']) == 0:
         return
 
+    con = mbtiles_connect(mbtiles_file)
+    cur = con.cursor()
+    optimize_connection(cur)
+
     count = 0
+    chunk = 100
     start_time = time.time()
-    tiles = con.execute('select tile_id, tile_data from images;')
-    t = tiles.fetchone()
-    while t:
-        tile_id = t[0]
-        tile_data = t[1]
 
-         # Execute commands
-        tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data)
-        if len(tile_data) == 0:
-            continue
+    cur.execute("select count(tile_id) from images")
+    res = cur.fetchone()
+    total_tiles = res[0]
+    logging.debug("%d total tiles" % total_tiles)
 
-        m = hashlib.md5()
-        m.update(tile_data)
-        new_tile_id = m.hexdigest()
+    cur.execute("select max(rowid) from images")
+    res = cur.fetchone()
+    max_rowid = res[0]
 
-        update_con.execute("""insert or ignore into images (tile_id, tile_data) values (?, ?);""",
-            (new_tile_id, sqlite3.Binary(tile_data)))
-        update_con.execute("""update map set tile_id=? where tile_id=?;""",
-            (new_tile_id, tile_id))
-        update_con.execute("""delete from images where tile_id=?;""", (tile_id))
+    for i in range((max_rowid / chunk) + 1):
+        cur.execute("""select tile_id, tile_data from images where rowid > ? and rowid <= ?""",
+            ((i * chunk), ((i + 1) * chunk)))
+        rows = cur.fetchall()
+        for r in rows:
+            tile_id = r[0]
+            tile_data = r[1]
 
-        count = count + 1
-        if (count % 100) == 0:
-            logger.debug("%s tiles finished (%d tiles/sec)" % (count, count / (time.time() - start_time)))
+            # Execute commands
+            tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data)
+            if len(tile_data) > 0:
+                m = hashlib.md5()
+                m.update(tile_data)
+                new_tile_id = m.hexdigest()
 
-        t = tiles.fetchone()
+                cur.execute("""insert or ignore into images (tile_id, tile_data) values (?, ?);""",
+                    (new_tile_id, sqlite3.Binary(tile_data)))
+                cur.execute("""update map set tile_id=? where tile_id=?;""",
+                    (new_tile_id, tile_id))
+                if tile_id != new_tile_id:
+                    cur.execute("""delete from images where tile_id=?;""",
+                        [tile_id])
 
-    logger.debug("%s tiles finished (%d tiles/sec)" % (count, count / (time.time() - start_time)))
+            count = count + 1
+            if (count % 100) == 0:
+                logger.debug("%s tiles finished (%.1f tiles/sec)" % (count, count / (time.time() - start_time)))
+
+        logging.debug("%d / %d rounds done" % (i+1, (max_rowid / chunk)+1))
+
+    logger.debug("%s tiles finished (%.1f tiles/sec)" % (count, count / (time.time() - start_time)))
+    con.commit()
     con.close()
-    update_con.commit()
-    update_con.close()
 
 def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     logger.debug("Importing disk to MBTiles")
