@@ -113,8 +113,8 @@ if __name__ == '__main__':
             if not os.path.isfile(args[0]):
                 sys.stderr.write('The mbtiles database to check must exist.\n')
                 sys.exit(1)
-            check_mbtiles(args[0], **options.__dict__)
-            sys.exit(0)
+            result = check_mbtiles(args[0], **options.__dict__)
+            sys.exit(0) if result else sys.exit(1)
 
         # Execute commands on the tiles in the mbtiles db?
         if options.command_list:
