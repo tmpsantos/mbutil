@@ -2,71 +2,98 @@
 
 # MBUtil: a tool for MBTiles files
 # Supports importing, exporting, and more
-# 
+#
 # (c) Development Seed 2012
 # Licensed under BSD
 
 import logging, os, sys
 from optparse import OptionParser
 
-from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database_file, check_mbtiles, execute_commands_on_mbtiles
+from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database_file, compact_mbtiles, check_mbtiles, execute_commands_on_mbtiles
 
 if __name__ == '__main__':
 
     logging.basicConfig(level=logging.INFO)
 
     parser = OptionParser(usage="""usage: %prog [options] input output
-    
+
     Examples:
-    
-    Export an mbtiles file to a directory of files:
-    $ mb-util world.mbtiles tiles # tiles directory must not already exist
-    
-    Import a directory of tiles into an mbtiles file:
-    $ mb-util tiles world.mbtiles # mbtiles file must not already exist
+
+    Export an mbtiles database to a directory of files:
+    $ mb-util --export world.mbtiles tiles
+
+    Import a directory of tiles into an mbtiles database:
+    $ mb-util --import tiles world.mbtiles
 
     Create an empty mbtiles file:
-    $ mb-util empty.mbtiles
+    $ mb-util --create empty.mbtiles
 
     Execute commands on all tiles in the mbtiles file:
-    $ mb-util -e "command" world.mbtiles
+    $ mb-util --execute "COMMAND ARGUMENTS" [--execute "SECOND COMMAND"] world.mbtiles
 
     Merge two or more mbtiles files (receiver will be the first file):
-    $ mb-util receiver.mbtiles file1.mbtiles [file2.mbtiles ...]
+    $ mb-util --merge receiver.mbtiles file1.mbtiles [file2.mbtiles ...]
 
-    Check if a mbtiles file contains all tiles at a specific zoom level:
-    $ mb-util -c [zoom level] world.mbtiles
+    Check if a mbtiles file contains all tiles at a specific zoom level and remove unused tiles:
+    $ mb-util --check world.mbtiles
+
+    Compact a mbtiles file by eliminating duplicate images:
+    $ mb-util --compact world.mbtiles
     """)
-    
-    parser.add_option("-c", "--check",
-        dest='zoomlevel', type='int',
-        help='''Zoomlevel to check (tbd)''',
-        default=None)
 
-    parser.add_option("-e", "--execute",
+    parser.add_option("-e", "--export",
+        dest='export_tiles', action="store_true",
+        help='''Export an mbtiles database to a directory of files. If the directory exists, any already existing tiles will be overwritten.''',
+        default=False)
+
+    parser.add_option("-i", "--import",
+        dest='import_tiles', action="store_true",
+        help='''Import a directory of tiles into an mbtiles database. If the mbtiles database already exists, existing tiles will be overwritten with the imported tiles.''',
+        default=False)
+
+    parser.add_option("-m", "--merge",
+        dest='merge_tiles', action="store_true",
+        help='''Merge two or more databases. The receiver will be created if it doesn\'t yet exist.''',
+        default=False)
+
+    parser.add_option("--check",
+        dest='check', action="store_true",
+        help='''Check the database for missing tiles and remove unnecessary tiles.''',
+        default=False)
+
+    parser.add_option("--compact",
+        dest='compact', action="store_true",
+        help='''Eliminate duplicate images to reduce mbtiles filesize.''',
+        default=False)
+
+    parser.add_option("--create",
+        action="store_true", dest="create", default=False,
+        help='''Create an empty mbtiles database.''')
+
+    parser.add_option("--execute",
         dest="command_list", type="string", metavar="COMMAND",
         action="append", default=None,
-        help='''Commands to execute for each tile image. %s will be replaced with the file name.''')
+        help='''Commands to execute for each tile image. %s will be replaced with the file name. This argument may be repeated several times and can also be used for import, export, merge and compact.''')
 
     parser.add_option('--flip-y', dest='flip_y',
-        help='''Flip the y tile coordinate during export/import/merge''',
+        help='''Flip the y tile coordinate during export/import/merge.''',
         action="store_true", default=False)
 
     parser.add_option("--no-vacuum",
         action="store_true", dest="skip_vacuum", default=False,
-        help="don't VACUUM the mbtiles file after merges")
+        help='''don't VACUUM the mbtiles database after --merge, --execute or --compact.''')
 
     parser.add_option("--no-analyze",
         action="store_true", dest="skip_analyze", default=False,
-        help="don't ANALYZE the mbtiles file after merges")
+        help='''don't ANALYZE the mbtiles database after --merge, --execute or --compact.''')
 
     parser.add_option("-q", "--quiet",
         action="store_true", dest="quiet", default=False,
-        help="don't print any status messages to stdout except errors")
+        help='''don't print any status messages to stdout except errors.''')
 
     parser.add_option("-d", "--debug",
         action="store_true", dest="debug", default=False,
-        help="print debug messages to stdout (exclusive to --quiet)")
+        help='''print debug messages to stdout (exclusive to --quiet).''')
 
     (options, args) = parser.parse_args()
 
@@ -82,52 +109,74 @@ if __name__ == '__main__':
 
     if len(args) == 1:
         # Check the mbtiles db?
-        if options.zoomlevel:
+        if options.check:
             if not os.path.isfile(args[0]):
-                sys.stderr.write('The mbtiles file to check must exist\n')
+                sys.stderr.write('The mbtiles database to check must exist.\n')
                 sys.exit(1)
-            check_mbtiles(args[0], options.zoomlevel, **options.__dict__)
+            check_mbtiles(args[0], **options.__dict__)
             sys.exit(0)
 
         # Execute commands on the tiles in the mbtiles db?
         if options.command_list:
             if not os.path.isfile(args[0]):
-                sys.stderr.write('The mbtiles file to execute commands on must exist\n')
+                sys.stderr.write('The mbtiles database to execute commands on must exist.\n')
                 sys.exit(1)
             execute_commands_on_mbtiles(args[0], **options.__dict__)
             optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum)
             sys.exit(0)
 
+        if options.compact:
+            if not os.path.isfile(args[0]):
+                sys.stderr.write('The mbtiles database to compact must exist.\n')
+                sys.exit(1)
+            compact_mbtiles(args[0])
+            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum)
+            sys.exit(0)
+
         # Create an empty mbtiles db?
-        if os.path.exists(args[0]):
-            sys.stderr.write('The mbtiles file to create must not exist yet\n')
-            sys.exit(1)
-        mbtiles_create(args[0], **options.__dict__)
+        if options.create:
+            if os.path.exists(args[0]):
+                sys.stderr.write('The mbtiles database to create must not exist yet.\n')
+                sys.exit(1)
+            mbtiles_create(args[0], **options.__dict__)
+            sys.exit(0)
+
+        sys.stderr.write("No command given, don't know what to do. Exiting...")
+        sys.exit(0)
+
+    # merge mbtiles files
+    if options.merge_tiles:
+        if not os.path.isfile(args[0]):
+            mbtiles_create(args[0], **options.__dict__)
+
+        receiving_mbtiles = args[0]
+        for n in range(1, len(args)):
+            other_mbtiles = args[n]
+            if not options.quiet:
+                logging.info("%d: Merging %s" % (n, other_mbtiles))
+            if not os.path.isfile(other_mbtiles):
+                continue
+            merge_mbtiles(receiving_mbtiles, other_mbtiles, **options.__dict__)
+
+        optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum)
         sys.exit(0)
 
     # export from mbtiles to disk
-    if os.path.isfile(args[0]) and not os.path.exists(args[1]):
+    if options.export_tiles:
+        if not os.path.isfile(args[0]):
+            sys.stderr.write('The mbtiles database to export must exist.\n')
+            sys.exit(1)
+
         mbtiles_file, directory_path = args
         mbtiles_to_disk(mbtiles_file, directory_path, **options.__dict__)
         sys.exit(0)
 
     # import from disk to mbtiles
-    if os.path.isdir(args[0]) and not os.path.isfile(args[0]):
+    if options.import_tiles:
+        if not os.path.isdir(args[0]):
+            sys.stderr.write('The directory to imprt from must exist.\n')
+            sys.exit(1)
+
         directory_path, mbtiles_file = args
         disk_to_mbtiles(directory_path, mbtiles_file, **options.__dict__)
         sys.exit(0)
-
-    # merge mbtiles files
-    if not os.path.isfile(args[0]):
-        mbtiles_create(args[0], **options.__dict__)
-
-    receiving_mbtiles = args[0]
-    for n in range(1, len(args)):
-        other_mbtiles = args[n]
-        if not options.quiet:
-            sys.stderr.write("%d -> %s\n" % (n, other_mbtiles))
-        if not os.path.isfile(other_mbtiles):
-            continue
-        merge_mbtiles(receiving_mbtiles, other_mbtiles, **options.__dict__)
-
-    optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum)

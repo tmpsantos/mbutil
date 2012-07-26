@@ -30,7 +30,7 @@ def optimize_connection(cur):
     cur.execute("""PRAGMA journal_mode=DELETE""")
 
 
-def compression_prepare(cur):
+def compaction_prepare(cur):
     cur.execute("""
         CREATE TABLE if not exists images (
         tile_data blob,
@@ -48,7 +48,7 @@ def compression_prepare(cur):
         CREATE UNIQUE INDEX name ON metadata (name);""")
 
 
-def compression_finalize(cur):
+def compaction_finalize(cur):
     try:
         cur.execute("""drop table tiles;""")
     except sqlite3.OperationalError:
@@ -65,13 +65,11 @@ def compression_finalize(cur):
     cur.execute("""
           CREATE UNIQUE INDEX images_id on images
             (tile_id);""")
-    cur.execute("""vacuum;""")
-    cur.execute("""analyze;""")
 
 
 def mbtiles_setup(cur):
-    compression_prepare(cur)
-    compression_finalize(cur)
+    compaction_prepare(cur)
+    compaction_finalize(cur)
 
 
 def optimize_database(cur, skip_analyze, skip_vacuum):
@@ -93,8 +91,8 @@ def optimize_database_file(mbtiles_file, skip_analyze, skip_vacuum):
     con.close()
 
 
-def compression_do(mbtiles_file):
-    logger.debug("Compressing MBTiles database %s" % (mbtiles_file))
+def compact_mbtiles(mbtiles_file):
+    logger.debug("Compacting MBTiles database %s" % (mbtiles_file))
 
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
@@ -105,7 +103,7 @@ def compression_do(mbtiles_file):
     existing_mbtiles_is_compacted = (res[0] > 0)
 
     if existing_mbtiles_is_compacted:
-        logger.info("The mbtiles file is already compressed")
+        logger.info("The mbtiles file is already compacted")
         return
 
     total_tiles = cur.execute("select count(zoom_level) from tiles").fetchone()[0]
@@ -118,6 +116,8 @@ def compression_do(mbtiles_file):
     start_time = time.time()
 
     logging.debug("%d total tiles" % total_tiles)
+
+    compaction_prepare(cur)
 
     for i in range((max_rowid / chunk) + 1):
         cur.execute("""select zoom_level, tile_column, tile_row, tile_data from tiles where rowid > ? and rowid <= ?""",
@@ -155,6 +155,8 @@ def compression_do(mbtiles_file):
                 logger.debug("%s tiles finished, %d unique, %d duplicates (%.1f tiles/sec)" % (count, unique, overlapping, count / (time.time() - start_time)))
 
     logger.debug("%s tiles finished, %d unique, %d duplicates (%.1f tiles/sec)" % (count, unique, overlapping, count / (time.time() - start_time)))
+
+    compaction_finalize(cur)
     con.commit()
     con.close()
 
@@ -192,7 +194,7 @@ def execute_commands_on_tile(command_list, image_format, tile_data):
 
 
 def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
-    logger.debug("Executing commands on MBTiles %s" % (mbtiles_file))
+    logger.debug("Executing commands on MBTiles database %s" % (mbtiles_file))
 
     if kwargs['command_list'] == None or len(kwargs['command_list']) == 0:
         return
@@ -249,8 +251,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
 
 def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
-    logger.debug("Importing disk to MBTiles")
-    logger.debug("%s --> %s" % (directory_path, mbtiles_file))
+    logger.debug("Importing from disk to MBTiles: %s --> %s" % (directory_path, mbtiles_file))
 
     import_into_existing_mbtiles = os.path.isfile(mbtiles_file)
     existing_mbtiles_is_compacted = True
@@ -329,8 +330,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
 
 def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
-    logger.debug("Merging MBTiles")
-    logger.debug("%s --> %s" % (mbtiles_file2, mbtiles_file1))
+    logger.debug("Merging MBTiles databases: %s --> %s" % (mbtiles_file2, mbtiles_file1))
 
     con1 = mbtiles_connect(mbtiles_file1)
     cur1 = con1.cursor()
@@ -395,8 +395,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
 
 def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
-    logger.debug("Exporting MBTiles to disk")
-    logger.debug("%s --> %s" % (mbtiles_file, directory_path))
+    logger.debug("Exporting MBTiles to disk: %s --> %s" % (mbtiles_file, directory_path))
 
     con = mbtiles_connect(mbtiles_file)
 
@@ -442,8 +441,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     con.close()
 
 
-def check_mbtiles(mbtiles_file, zoom_level, **kwargs):
-    logger.debug("Checking MBTiles file %s at zoom level %d" % (mbtiles_file, zoom_level))
-    tiles_count = (2**zoom_level)
+def check_mbtiles(mbtiles_file, **kwargs):
+    logger.debug("Checking MBTiles database %s" % (mbtiles_file))
 
     logger.info("This does not work yet.")
