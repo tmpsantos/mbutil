@@ -73,7 +73,7 @@ if __name__ == '__main__':
     parser.add_option("--execute",
         dest="command_list", type="string", metavar="COMMAND",
         action="append", default=None,
-        help='''Commands to execute for each tile image. %s will be replaced with the file name. This argument may be repeated several times and can also be used for import, export, merge and compact.''')
+        help='''Commands to execute for each tile image. %s will be replaced with the file name. This argument may be repeated several times and can also be used for --import/--export/--merge/--compact.''')
 
     parser.add_option('--flip-y', dest='flip_y',
         help='''Flip the y tile coordinate during --export/--import/--merge.''',
