@@ -76,8 +76,16 @@ if __name__ == '__main__':
         help='''Commands to execute for each tile image. %s will be replaced with the file name. This argument may be repeated several times and can also be used for import, export, merge and compact.''')
 
     parser.add_option('--flip-y', dest='flip_y',
-        help='''Flip the y tile coordinate during export/import/merge.''',
+        help='''Flip the y tile coordinate during --export/--import/--merge.''',
         action="store_true", default=False)
+
+    parser.add_option('--min-zoom', dest='min_zoom',
+        help='''Minimum zoom level for --export/--import/--merge/--execute/--check.''',
+        type="int", default=0)
+
+    parser.add_option('--max-zoom', dest='max_zoom',
+        help='''Maximum zoom level for --export/--import/--merge/--execute/--check.''',
+        type="int", default=255)
 
     parser.add_option("--no-vacuum",
         action="store_true", dest="skip_vacuum", default=False,
@@ -174,7 +182,7 @@ if __name__ == '__main__':
     # import from disk to mbtiles
     if options.import_tiles:
         if not os.path.isdir(args[0]):
-            sys.stderr.write('The directory to imprt from must exist.\n')
+            sys.stderr.write('The directory to import from must exist.\n')
             sys.exit(1)
 
         directory_path, mbtiles_file = args

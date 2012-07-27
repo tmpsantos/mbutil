@@ -207,22 +207,29 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     chunk = 100
     start_time = time.time()
 
-    cur.execute("select count(tile_id) from images")
+    min_zoom = kwargs.get('min_zoom')
+    max_zoom = kwargs.get('max_zoom')
+
+    cur.execute("""select count(tile_id) from map where zoom_level>=? and zoom_level<=?""", (min_zoom, max_zoom))
     res = cur.fetchone()
     total_tiles = res[0]
     logging.debug("%d total tiles" % total_tiles)
 
-    cur.execute("select max(rowid) from images")
+    cur.execute("select max(rowid) from map")
     res = cur.fetchone()
     max_rowid = res[0]
 
     for i in range((max_rowid / chunk) + 1):
-        cur.execute("""select tile_id, tile_data from images where rowid > ? and rowid <= ?""",
-            ((i * chunk), ((i + 1) * chunk)))
+        cur.execute("""select images.tile_id, images.tile_data, map.zoom_level, map.tile_column, map.tile_row from map, images where (map.rowid > ? and map.rowid <= ?) and (map.zoom_level>=? and map.zoom_level<=?) and (images.tile_id == map.tile_id)""",
+            ((i * chunk), ((i + 1) * chunk), min_zoom, max_zoom))
         rows = cur.fetchall()
         for r in rows:
             tile_id = r[0]
             tile_data = r[1]
+            # tile_z = r[2]
+            # tile_x = r[3]
+            # tile_y = r[4]
+            # logging.debug("Working on tile (%d, %d, %d)" % (tile_z, tile_x, tile_y))
 
             # Execute commands
             tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data)
@@ -281,11 +288,17 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     except IOError:
         logger.warning('metadata.json not found')
 
+    min_zoom = kwargs.get('min_zoom')
+    max_zoom = kwargs.get('max_zoom')
+
     count = 0
     start_time = time.time()
     msg = ""
     for r1, zs, ignore in os.walk(os.path.join(directory_path, "tiles")):
         for z in zs:
+            if int(z) < min_zoom or int(z) > max_zoom:
+                continue
+
             for r2, xs, ignore in os.walk(os.path.join(r1, z)):
                 for x in xs:
                     for r2, ignore, ys in os.walk(os.path.join(r1, z, x)):
@@ -352,9 +365,12 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
     cur1.execute('insert or ignore into metadata (name, value) values ("format", "png")')
 
+    min_zoom = kwargs.get('min_zoom')
+    max_zoom = kwargs.get('max_zoom')
+
     count = 0
     start_time = time.time()
-    tiles = cur2.execute('select zoom_level, tile_column, tile_row, tile_data from tiles;')
+    tiles = cur2.execute("""select zoom_level, tile_column, tile_row, tile_data from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
     t = tiles.fetchone()
     while t:
         z = t[0]
@@ -410,7 +426,10 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     if not os.path.isdir(base_path):
         os.makedirs(base_path)
 
-    tiles = con.execute('select zoom_level, tile_column, tile_row, tile_data from tiles;')
+    min_zoom = kwargs.get('min_zoom')
+    max_zoom = kwargs.get('max_zoom')
+
+    tiles = con.execute("""select zoom_level, tile_column, tile_row, tile_data from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
     t = tiles.fetchone()
     while t:
         z = t[0]
@@ -445,6 +464,8 @@ def check_mbtiles(mbtiles_file, **kwargs):
     logger.debug("Checking MBTiles database %s" % (mbtiles_file))
 
     result = True
+    min_zoom = kwargs.get('min_zoom')
+    max_zoom = kwargs.get('max_zoom')
 
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
@@ -454,6 +475,9 @@ def check_mbtiles(mbtiles_file, **kwargs):
     missing_tiles = []
 
     for current_zoom_level in zoom_levels:
+        if current_zoom_level < min_zoom or current_zoom_level > max_zoom:
+            continue
+
         t = cur.execute("""select min(tile_column), max(tile_column),
                            min(tile_row), max(tile_row)
                            from tiles where zoom_level = ?""", [current_zoom_level]).fetchone()
