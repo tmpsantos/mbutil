@@ -72,7 +72,7 @@ Python installation (requires easy_install)
         --create            Create an empty mbtiles database.
         --execute=COMMAND   Commands to execute for each tile image. %s will be
                             replaced with the file name. This argument may be
-                            repeated several times and can also be used for
+                            repeated several times and can also be used together with
                             --import/--export/--merge/--compact.
 
     Options:
