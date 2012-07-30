@@ -423,6 +423,8 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
     count = 0
     start_time = time.time()
+    known_tile_ids = set()
+
     tiles = cur2.execute("""select zoom_level, tile_column, tile_row, tile_data from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
     t = tiles.fetchone()
     while t:
@@ -448,15 +450,15 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         m.update(tile_data)
         tile_id = m.hexdigest()
 
-        # Update duplicates
-
-        cur1.execute("""replace into images (tile_id, tile_data) values (?, ?);""",
-            (tile_id, sqlite3.Binary(tile_data)))
+        if tile_id not in known_tile_ids:
+            cur1.execute("""replace into images (tile_id, tile_data) values (?, ?);""",
+                (tile_id, sqlite3.Binary(tile_data)))
 
         cur1.execute("""replace into map (zoom_level, tile_column, tile_row, tile_id)
             values (?, ?, ?, ?);""",
             (z, x, y, tile_id))
 
+        known_tile_ids.add(tile_id)
         count = count + 1
         if (count % 100) == 0:
             logger.debug("%s tiles merged (%.1f tiles/sec)" % (count, count / (time.time() - start_time)))
