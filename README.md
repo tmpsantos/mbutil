@@ -52,47 +52,47 @@ Python installation (requires easy_install)
     Compact a mbtiles file by eliminating duplicate images:
     $ mb-util --compact world.mbtiles
 
-Options:
-  -h, --help            show this help message and exit
+    Options:
+        -h, --help            show this help message and exit
 
-  Commands:
-    These are the commands to use on mbtiles databases
+    Commands:
+        These are the commands to use on mbtiles databases
 
-    -e, --export        Export an mbtiles database to a directory of files. If
-                        the directory exists, any already existing tiles will
-                        be overwritten.
-    -i, --import        Import a directory of tiles into an mbtiles database.
-                        If the mbtiles database already exists, existing tiles
-                        will be overwritten with the imported tiles.
-    -m, --merge         Merge two or more databases. The receiver will be
-                        created if it doesn't yet exist.
-    --check             Check the database for missing tiles and remove
-                        unnecessary tiles.
-    --compact           Eliminate duplicate images to reduce mbtiles filesize.
-    --create            Create an empty mbtiles database.
-    --execute=COMMAND   Commands to execute for each tile image. %s will be
-                        replaced with the file name. This argument may be
-                        repeated several times and can also be used for
-                        --import/--export/--merge/--compact.
+        -e, --export        Export an mbtiles database to a directory of files. If
+                            the directory exists, any already existing tiles will
+                            be overwritten.
+        -i, --import        Import a directory of tiles into an mbtiles database.
+                            If the mbtiles database already exists, existing tiles
+                            will be overwritten with the imported tiles.
+        -m, --merge         Merge two or more databases. The receiver will be
+                            created if it doesn't yet exist.
+        --check             Check the database for missing tiles and remove
+                            unnecessary tiles.
+        --compact           Eliminate duplicate images to reduce mbtiles filesize.
+        --create            Create an empty mbtiles database.
+        --execute=COMMAND   Commands to execute for each tile image. %s will be
+                            replaced with the file name. This argument may be
+                            repeated several times and can also be used for
+                            --import/--export/--merge/--compact.
 
-  Options:
-    --flip-y            Flip the y tile coordinate during
-                        --export/--import/--merge.
-    --min-zoom=MIN_ZOOM
-                        Minimum zoom level for
-                        --export/--import/--merge/--execute/--check.
-    --max-zoom=MAX_ZOOM
-                        Maximum zoom level for
-                        --export/--import/--merge/--execute/--check.
-    --no-overwrite      don't overwrite existing tiles during --merge,
-                        --import.
-    --no-vacuum         don't VACUUM the mbtiles database after --import,
-                        --merge, --execute, --compact.
-    --no-analyze        don't ANALYZE the mbtiles database after --import,
-                        --merge, --execute, --compact.
-    -q, --quiet         don't print any status messages to stdout except
-                        errors.
-    -d, --debug         print debug messages to stdout (exclusive to --quiet).
+    Options:
+        --flip-y            Flip the y tile coordinate during
+                            --export/--import/--merge.
+        --min-zoom=MIN_ZOOM
+                            Minimum zoom level for
+                            --export/--import/--merge/--execute/--check.
+        --max-zoom=MAX_ZOOM
+                            Maximum zoom level for
+                            --export/--import/--merge/--execute/--check.
+        --no-overwrite      don't overwrite existing tiles during --merge,
+                            --import.
+        --no-vacuum         don't VACUUM the mbtiles database after --import,
+                            --merge, --execute, --compact.
+        --no-analyze        don't ANALYZE the mbtiles database after --import,
+                            --merge, --execute, --compact.
+        -q, --quiet         don't print any status messages to stdout except
+                            errors.
+        -d, --debug         print debug messages to stdout (exclusive to --quiet).
 
 ## Requirements
 
