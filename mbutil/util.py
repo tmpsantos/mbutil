@@ -291,6 +291,29 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
     min_zoom = kwargs.get('min_zoom')
     max_zoom = kwargs.get('max_zoom')
+    no_overwrite = kwargs.get('no_overwrite')
+
+    existing_tiles = {}
+    if no_overwrite:
+        tiles = cur.execute("""select zoom_level, tile_column, tile_row from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
+        t = tiles.fetchone()
+        while t:
+            z = str(t[0])
+            x = str(t[1])
+            y = str(t[2])
+
+            zoom = existing_tiles.get(z, None)
+            if not zoom:
+                zoom = {}
+                existing_tiles[z] = zoom
+
+            row = zoom.get(y, None)
+            if not row:
+                row = set()
+                zoom[y] = row
+
+            row.add(x)
+            t = tiles.fetchone()
 
     count = 0
     start_time = time.time()
@@ -304,10 +327,17 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                 for x in xs:
                     for r2, ignore, ys in os.walk(os.path.join(r1, z, x)):
                         for y in ys:
+                            y, extension = y.split('.')
+
+                            if no_overwrite:
+                                if x in existing_tiles.get(z, {}).get(y, set()):
+                                    logging.debug("Ignoring tile (%s, %s, %s)" % (z, x, y))
+                                    continue
+
                             if kwargs.get('flip_y') == True:
                                 y = flip_y(z, y)
 
-                            f = open(os.path.join(r1, z, x, y), 'rb')
+                            f = open(os.path.join(r1, z, x, y) + '.' + extension, 'rb')
                             tile_data = f.read()
                             f.close()
 
@@ -325,7 +355,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
                                 cur.execute("""replace into map (zoom_level, tile_column, tile_row, tile_id)
                                     values (?, ?, ?, ?);""",
-                                    (z, x, y.split('.')[0], tile_id))
+                                    (z, x, y, tile_id))
                             else:
                                 cur.execute("""replace into tiles (zoom_level,
                                     tile_column, tile_row, tile_data) values
@@ -368,6 +398,29 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
     min_zoom = kwargs.get('min_zoom')
     max_zoom = kwargs.get('max_zoom')
+    no_overwrite = kwargs.get('no_overwrite')
+
+    existing_tiles = {}
+    if no_overwrite:
+        tiles = cur1.execute("""select zoom_level, tile_column, tile_row from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
+        t = tiles.fetchone()
+        while t:
+            z = t[0]
+            x = t[1]
+            y = t[2]
+
+            zoom = existing_tiles.get(z, None)
+            if not zoom:
+                zoom = {}
+                existing_tiles[z] = zoom
+
+            row = zoom.get(y, None)
+            if not row:
+                row = set()
+                zoom[y] = row
+
+            row.add(x)
+            t = tiles.fetchone()
 
     count = 0
     start_time = time.time()
@@ -378,6 +431,12 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         x = t[1]
         y = t[2]
         tile_data = t[3]
+
+        if no_overwrite:
+            if x in existing_tiles.get(z, {}).get(y, set()):
+                logging.debug("Ignoring tile (%d, %d, %d)" % (z, x, y))
+                t = tiles.fetchone()
+                continue
 
         if kwargs.get('flip_y') == True:
           y = flip_y(z, y)
