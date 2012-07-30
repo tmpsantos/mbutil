@@ -368,7 +368,6 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                                 logger.debug("%s tiles inserted (%d tiles/sec)" % (count, count / (time.time() - start_time)))
 
     logger.debug('tiles inserted.')
-    optimize_database(con, False, import_into_existing_mbtiles)
     con.commit()
     con.close()
 

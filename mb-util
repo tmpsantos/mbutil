@@ -191,4 +191,5 @@ if __name__ == '__main__':
 
         directory_path, mbtiles_file = args
         disk_to_mbtiles(directory_path, mbtiles_file, **options.__dict__)
+        optimize_database_file(mbtiles_file, options.skip_analyze, options.skip_vacuum)
         sys.exit(0)
