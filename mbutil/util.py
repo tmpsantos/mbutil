@@ -24,10 +24,11 @@ def mbtiles_connect(mbtiles_file):
         sys.exit(1)
 
 
-def optimize_connection(cur):
+def optimize_connection(cur, exclusive_lock=True):
     cur.execute("""PRAGMA synchronous=0""")
-    cur.execute("""PRAGMA locking_mode=EXCLUSIVE""")
     cur.execute("""PRAGMA journal_mode=DELETE""")
+    if exclusive_lock:
+        cur.execute("""PRAGMA locking_mode=EXCLUSIVE""")
 
 
 def compaction_prepare(cur):
@@ -265,7 +266,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
-    optimize_connection(cur)
+    optimize_connection(cur, False)
 
     if import_into_existing_mbtiles:
         cur.execute("select count(name) from sqlite_master where type='table' AND name='images';")
@@ -347,7 +348,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
     con1 = mbtiles_connect(mbtiles_file1)
     cur1 = con1.cursor()
-    optimize_connection(cur1)
+    optimize_connection(cur1, False)
 
     cur1.execute("select count(name) from sqlite_master where type='table' AND name='images';")
     res = cur1.fetchone()
