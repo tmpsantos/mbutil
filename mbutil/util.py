@@ -14,9 +14,11 @@ def flip_y(zoom, y):
     return (2**zoom-1) - y
 
 
-def mbtiles_connect(mbtiles_file):
+def mbtiles_connect(mbtiles_file, auto_commit=False):
     try:
         con = sqlite3.connect(mbtiles_file)
+        if auto_commit:
+            con.isolation_level = None
         return con
     except Exception, e:
         logger.error("Could not connect to database")
@@ -200,7 +202,9 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     if kwargs['command_list'] == None or len(kwargs['command_list']) == 0:
         return
 
-    con = mbtiles_connect(mbtiles_file)
+    auto_commit = kwargs.get('auto_commit')
+
+    con = mbtiles_connect(mbtiles_file, auto_commit)
     cur = con.cursor()
     optimize_connection(cur)
 
@@ -264,7 +268,9 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     import_into_existing_mbtiles = os.path.isfile(mbtiles_file)
     existing_mbtiles_is_compacted = True
 
-    con = mbtiles_connect(mbtiles_file)
+    auto_commit = kwargs.get('auto_commit')
+
+    con = mbtiles_connect(mbtiles_file, auto_commit)
     cur = con.cursor()
     optimize_connection(cur, False)
 
@@ -285,6 +291,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
             for name, value in metadata.items():
                 cur.execute('insert into metadata (name, value) values (?, ?)',
                         (name, value))
+            con.commit()
             logger.info('metadata from metadata.json restored')
     except IOError:
         logger.warning('metadata.json not found')
@@ -375,7 +382,9 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     logger.debug("Merging MBTiles databases: %s --> %s" % (mbtiles_file2, mbtiles_file1))
 
-    con1 = mbtiles_connect(mbtiles_file1)
+    auto_commit = kwargs.get('auto_commit')
+
+    con1 = mbtiles_connect(mbtiles_file1, auto_commit)
     cur1 = con1.cursor()
     optimize_connection(cur1, False)
 
@@ -394,6 +403,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     # TODO: Check that the old and new image formats are the same
 
     cur1.execute('insert or ignore into metadata (name, value) values ("format", "png")')
+    con1.commit()
 
     min_zoom = kwargs.get('min_zoom')
     max_zoom = kwargs.get('max_zoom')

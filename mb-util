@@ -97,6 +97,10 @@ if __name__ == '__main__':
         action="store_true", dest="no_overwrite", default=False,
         help='''don't overwrite existing tiles during --merge, --import.''')
 
+    group.add_option("--auto-commit",
+        action="store_true", dest="auto_commit", default=False,
+        help='''Enable auto commit for --merge, --import, --execute.''')
+
     group.add_option("--no-vacuum",
         action="store_true", dest="skip_vacuum", default=False,
         help='''don't VACUUM the mbtiles database after --import, --merge, --execute, --compact.''')
