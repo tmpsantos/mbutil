@@ -142,14 +142,14 @@ def compact_mbtiles(mbtiles_file):
             tile_id = m.hexdigest()
 
             try:
-                cur1.execute("""insert into images (tile_id, tile_data) values (?, ?);""",
+                cur.execute("""insert into images (tile_id, tile_data) values (?, ?);""",
                     (tile_id, sqlite3.Binary(tile_data)))
             except:
                 overlapping = overlapping + 1
             else:
                 unique = unique + 1
 
-            cur1.execute("""replace into map (zoom_level, tile_column, tile_row, tile_id)
+            cur.execute("""replace into map (zoom_level, tile_column, tile_row, tile_id)
                 values (?, ?, ?, ?);""",
                 (z, x, y, tile_id))
 
@@ -282,17 +282,29 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
         mbtiles_setup(cur)
 
     image_format = 'png'
-    grid_warning = True
     try:
         metadata = json.load(open(os.path.join(directory_path, 'metadata.json'), 'r'))
         image_format = metadata.get('format', 'png')
-        # TODO: Check that the old and new image formats are the same
+
+        # Check that the old and new image formats are the same
+        if import_into_existing_mbtiles:
+            original_format = None
+            try:
+                original_format = cur.execute("select value from metadata where name='format';").fetchone()[0]
+            except:
+                pass
+
+            if original_format != None and image_format != original_format:
+                sys.stderr.write('The files to merge must use the same image format (png or jpg)\n')
+                sys.exit(1)
+
         if not import_into_existing_mbtiles:
             for name, value in metadata.items():
-                cur.execute('insert into metadata (name, value) values (?, ?)',
+                cur.execute('insert or ignore into metadata (name, value) values (?, ?)',
                         (name, value))
             con.commit()
             logger.info('metadata from metadata.json restored')
+
     except IOError:
         logger.warning('metadata.json not found')
 
@@ -400,10 +412,21 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     cur2 = con2.cursor()
     optimize_connection(cur2)
 
-    # TODO: Check that the old and new image formats are the same
+    # Check that the old and new image formats are the same
+    original_format = new_format = None
+    try:
+        original_format = cur1.execute("select value from metadata where name='format';").fetchone()[0]
+        new_format = cur2.execute("select value from metadata where name='format';").fetchone()[0]
+    except:
+        pass
 
-    cur1.execute('insert or ignore into metadata (name, value) values ("format", "png")')
-    con1.commit()
+    if original_format != None and new_format != None and new_format != original_format:
+        sys.stderr.write('The files to merge must use the same image format (png or jpg)\n')
+        sys.exit(1)
+
+    if original_format == None and new_format != None:
+        cur1.execute("""insert or ignore into metadata (name, value) values ("format", ?)""", [new_format])
+        con1.commit()
 
     min_zoom = kwargs.get('min_zoom')
     max_zoom = kwargs.get('max_zoom')
