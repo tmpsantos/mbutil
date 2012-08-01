@@ -243,32 +243,28 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
             # logging.debug("Working on tile (%d, %d, %d)" % (tile_z, tile_x, tile_y))
 
             if tile_id in processed_tile_ids:
-                count = count + 1
                 duplicates = duplicates + 1
-                continue
+            else:
+                processed_tile_ids.add(tile_id)
 
-            processed_tile_ids.add(tile_id)
+                # Execute commands
+                tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data)
+                if tile_data and len(tile_data) > 0:
+                    m = hashlib.md5()
+                    m.update(tile_data)
+                    new_tile_id = m.hexdigest()
 
-            # Execute commands
-            tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data)
-            if tile_data and len(tile_data) > 0:
-                m = hashlib.md5()
-                m.update(tile_data)
-                new_tile_id = m.hexdigest()
-
-                cur.execute("""insert or ignore into images (tile_id, tile_data) values (?, ?);""",
-                    (new_tile_id, sqlite3.Binary(tile_data)))
-                cur.execute("""update map set tile_id=? where tile_id=?;""",
-                    (new_tile_id, tile_id))
-                if tile_id != new_tile_id:
-                    cur.execute("""delete from images where tile_id=?;""",
-                        [tile_id])
+                    cur.execute("""insert or ignore into images (tile_id, tile_data) values (?, ?);""",
+                        (new_tile_id, sqlite3.Binary(tile_data)))
+                    cur.execute("""update map set tile_id=? where tile_id=?;""",
+                        (new_tile_id, tile_id))
+                    if tile_id != new_tile_id:
+                        cur.execute("""delete from images where tile_id=?;""",
+                            [tile_id])
 
             count = count + 1
             if (count % 100) == 0:
                 logger.debug("%s tiles finished (%.1f%%, %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
-
-        logging.debug("%d / %d rounds done" % (i+1, (max_rowid / chunk)+1))
 
     logger.debug("%s tiles finished, %d duplicates ignored (%.1f tiles/sec)" % (count, duplicates, count / (time.time() - start_time)))
     con.commit()
