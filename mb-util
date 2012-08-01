@@ -93,6 +93,10 @@ if __name__ == '__main__':
         help='''Maximum zoom level for --export/--import/--merge/--execute/--check.''',
         type="int", default=255)
 
+    group.add_option('--zoom', dest='zoom',
+        help='''Zoom level for --export/--import/--execute/--check. (Overrides --min-zoom and --max-zoom)''',
+        type='int', default=-1)
+
     group.add_option("--no-overwrite",
         action="store_true", dest="no_overwrite", default=False,
         help='''don't overwrite existing tiles during --merge, --import.''')

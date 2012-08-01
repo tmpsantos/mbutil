@@ -212,8 +212,12 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     chunk = 100
     start_time = time.time()
 
+    zoom     = kwargs.get('zoom')
     min_zoom = kwargs.get('min_zoom')
     max_zoom = kwargs.get('max_zoom')
+
+    if zoom >= 0:
+        min_zoom = max_zoom = zoom
 
     cur.execute("""select count(tile_id) from map where zoom_level>=? and zoom_level<=?""", (min_zoom, max_zoom))
     res = cur.fetchone()
@@ -308,9 +312,13 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     except IOError:
         logger.warning('metadata.json not found')
 
+    zoom     = kwargs.get('zoom')
     min_zoom = kwargs.get('min_zoom')
     max_zoom = kwargs.get('max_zoom')
     no_overwrite = kwargs.get('no_overwrite')
+
+    if zoom >= 0:
+        min_zoom = max_zoom = zoom
 
     existing_tiles = {}
     if no_overwrite:
@@ -428,9 +436,13 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         cur1.execute("""insert or ignore into metadata (name, value) values ("format", ?)""", [new_format])
         con1.commit()
 
+    zoom     = kwargs.get('zoom')
     min_zoom = kwargs.get('min_zoom')
     max_zoom = kwargs.get('max_zoom')
     no_overwrite = kwargs.get('no_overwrite')
+
+    if zoom >= 0:
+        min_zoom = max_zoom = zoom
 
     existing_tiles = {}
     if no_overwrite:
@@ -520,8 +532,12 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     if not os.path.isdir(base_path):
         os.makedirs(base_path)
 
+    zoom     = kwargs.get('zoom')
     min_zoom = kwargs.get('min_zoom')
     max_zoom = kwargs.get('max_zoom')
+
+    if zoom >= 0:
+        min_zoom = max_zoom = zoom
 
     tiles = con.execute("""select zoom_level, tile_column, tile_row, tile_data from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
     t = tiles.fetchone()
@@ -558,8 +574,13 @@ def check_mbtiles(mbtiles_file, **kwargs):
     logger.debug("Checking MBTiles database %s" % (mbtiles_file))
 
     result = True
+
+    zoom     = kwargs.get('zoom')
     min_zoom = kwargs.get('min_zoom')
     max_zoom = kwargs.get('max_zoom')
+
+    if zoom >= 0:
+        min_zoom = max_zoom = zoom
 
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
