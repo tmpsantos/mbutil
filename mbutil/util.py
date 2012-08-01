@@ -402,6 +402,11 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     logger.debug("Merging MBTiles databases: %s --> %s" % (mbtiles_file2, mbtiles_file1))
 
+    check_before_merge = kwargs.get('check_before_merge')
+    if check_before_merge and not check_mbtiles(mbtiles_file2, **kwargs):
+        sys.stderr.write("The pre-merge check on %s failed\n" % (mbtiles_file2))
+        sys.exit(1)
+
     auto_commit = kwargs.get('auto_commit')
 
     con1 = mbtiles_connect(mbtiles_file1, auto_commit)
