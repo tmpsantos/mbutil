@@ -611,7 +611,7 @@ def check_mbtiles(mbtiles_file, **kwargs):
         logger.debug(" - Checking zoom level %d, x: %d - %d, y: %d - %d" % (current_zoom_level, minX, maxX, minY, maxY))
 
         for current_row in range(minY, maxY+1):
-            logger.debug("   - Row: %d (%.0f%%)" % (current_row, (float(current_row-minY)/float(maxY-minY)) * 100.0))
+            logger.debug("   - Row: %d (%.1f%%)" % (current_row, (float(current_row-minY)/float(maxY-minY)) * 100.0))
             mbtiles_columns = set([int(x[0]) for x in cur.execute("""select tile_column from tiles where zoom_level=? and tile_row=?""", (current_zoom_level, current_row)).fetchall()])
             for current_column in range(minX, maxX+1):
                 if current_column not in mbtiles_columns:
