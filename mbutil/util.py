@@ -586,6 +586,8 @@ def check_mbtiles(mbtiles_file, **kwargs):
     cur = con.cursor()
     optimize_connection(cur)
 
+    logger.debug("Load zoom levels")
+
     zoom_levels = [int(x[0]) for x in cur.execute("select distinct(zoom_level) from tiles;").fetchall()]
     missing_tiles = []
 
