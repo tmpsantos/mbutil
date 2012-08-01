@@ -184,7 +184,7 @@ def execute_commands_on_tile(command_list, image_format, tile_data):
     tmp_file.close()
 
     for command in command_list:
-        logger.debug("Executing command: %s" % command)
+        # logger.debug("Executing command: %s" % command)
         os.system(command % (tmp_file_name))
 
     tmp_file = open(tmp_file_name, "r")
@@ -209,8 +209,10 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     optimize_connection(cur)
 
     count = 0
+    duplicates = 0
     chunk = 100
     start_time = time.time()
+    processed_tile_ids = set()
 
     zoom     = kwargs.get('zoom')
     min_zoom = kwargs.get('min_zoom')
@@ -240,6 +242,13 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
             # tile_y = r[4]
             # logging.debug("Working on tile (%d, %d, %d)" % (tile_z, tile_x, tile_y))
 
+            if tile_id in processed_tile_ids:
+                count = count + 1
+                duplicates = duplicates + 1
+                continue
+
+            processed_tile_ids.add(tile_id)
+
             # Execute commands
             tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data)
             if tile_data and len(tile_data) > 0:
@@ -257,11 +266,11 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
             count = count + 1
             if (count % 100) == 0:
-                logger.debug("%s tiles finished (%.1f tiles/sec)" % (count, count / (time.time() - start_time)))
+                logger.debug("%s tiles finished (%.1f%%, %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
 
         logging.debug("%d / %d rounds done" % (i+1, (max_rowid / chunk)+1))
 
-    logger.debug("%s tiles finished (%.1f tiles/sec)" % (count, count / (time.time() - start_time)))
+    logger.debug("%s tiles finished, %d duplicates ignored (%.1f tiles/sec)" % (count, duplicates, count / (time.time() - start_time)))
     con.commit()
     con.close()
 
