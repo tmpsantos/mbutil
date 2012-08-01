@@ -58,6 +58,10 @@ if __name__ == '__main__':
         help='''Merge two or more databases. The receiver will be created if it doesn\'t yet exist.''',
         default=False)
 
+    group.add_option("-p", "--process",
+        action="store_true", dest="process", default=False,
+        help='''Processes a mbtiles databases. Only usefull together with one or more --execute.''')
+
     group.add_option("--check",
         dest='check', action="store_true",
         help='''Check the database for missing tiles and remove unnecessary tiles.''',
@@ -71,10 +75,6 @@ if __name__ == '__main__':
     group.add_option("--create",
         action="store_true", dest="create", default=False,
         help='''Create an empty mbtiles database.''')
-
-    group.add_option("--process",
-        action="store_true", dest="process", default=False,
-        help='''Processes a mbtiles databases. Only usefull together with one or more --execute.''')
 
     parser.add_option_group(group)
 
