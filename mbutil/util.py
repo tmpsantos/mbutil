@@ -572,15 +572,18 @@ def check_mbtiles(mbtiles_file, **kwargs):
         if current_zoom_level < min_zoom or current_zoom_level > max_zoom:
             continue
 
+        logger.debug("Starting zoom level %d" % (current_zoom_level))
+
         t = cur.execute("""select min(tile_column), max(tile_column),
                            min(tile_row), max(tile_row)
                            from tiles where zoom_level = ?""", [current_zoom_level]).fetchone()
 
         minX, maxX, minY, maxY = t[0], t[1], t[2], t[3]
 
-        logging.debug("Checking zoom level %d, x: %d - %d, y: %d - %d" % (current_zoom_level, minX, maxX, minY, maxY))
+        logger.debug(" - Checking zoom level %d, x: %d - %d, y: %d - %d" % (current_zoom_level, minX, maxX, minY, maxY))
 
         for current_row in range(minY, maxY+1):
+            logger.debug("   - Row: %d" % (current_row))
             mbtiles_columns = set([int(x[0]) for x in cur.execute("""select tile_column from tiles where zoom_level=? and tile_row=?""", (current_zoom_level, current_row)).fetchall()])
             for current_column in range(minX, maxX+1):
                 if current_column not in mbtiles_columns:
@@ -588,8 +591,8 @@ def check_mbtiles(mbtiles_file, **kwargs):
 
     if len(missing_tiles) > 0:
         result = False
-        logging.error("(zoom, x, y)")
+        logger.error("(zoom, x, y)")
         for current_tile in missing_tiles:
-            logging.error(current_tile)
+            logger.error(current_tile)
 
     return result
