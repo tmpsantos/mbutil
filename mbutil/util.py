@@ -207,7 +207,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
     existing_mbtiles_is_compacted = (cur.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)
     if not existing_mbtiles_is_compacted:
-        logger.info("The mbtiles file is not compacted, exiting...")
+        logger.info("The mbtiles file must be compacted, exiting...")
         return
 
     count = 0
@@ -417,14 +417,17 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     cur1 = con1.cursor()
     optimize_connection(cur1, False)
 
-    existing_mbtiles_is_compacted = (cur1.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)
-    if not existing_mbtiles_is_compacted:
-        sys.stderr.write('To merge two MBTiles, the receiver must already be compacted\n')
-        sys.exit(1)
-
     con2 = mbtiles_connect(mbtiles_file2)
     cur2 = con2.cursor()
     optimize_connection(cur2)
+
+    receiving_mbtiles_is_compacted = (cur1.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)
+    sending_mbtiles_is_compacted = (cur2.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)
+    if not receiving_mbtiles_is_compacted:
+        con1.close()
+        con2.close()
+        sys.stderr.write('To merge two MBTiles, the receiver must already be compacted\n')
+        sys.exit(1)
 
     # Check that the old and new image formats are the same
     original_format = new_format = None
@@ -523,7 +526,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     if delete_after_export:
         logger.debug("WARNING: Removing merged tiles from %s" % (mbtiles_file2))
 
-        if existing_mbtiles_is_compacted:
+        if sending_mbtiles_is_compacted:
             cur2.execute("""delete from images where tile_id in (select tile_id from map where zoom_level>=? and zoom_level<=?);""", (min_zoom, max_zoom))
             cur2.execute("""delete from map where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
         else:
@@ -564,7 +567,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     if not os.path.isdir(base_path):
         os.makedirs(base_path)
 
-    existing_mbtiles_is_compacted = (cur.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)
+    sending_mbtiles_is_compacted = (cur.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)
 
     tiles = cur.execute("""select zoom_level, tile_column, tile_row, tile_data from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
     t = tiles.fetchone()
@@ -600,7 +603,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     if delete_after_export:
         logger.debug("WARNING: Removing exported tiles from %s" % (mbtiles_file))
 
-        if existing_mbtiles_is_compacted:
+        if sending_mbtiles_is_compacted:
             cur.execute("""delete from images where tile_id in (select tile_id from map where zoom_level>=? and zoom_level<=?);""", (min_zoom, max_zoom))
             cur.execute("""delete from map where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
         else:
