@@ -29,13 +29,13 @@ if __name__ == '__main__':
     $ mb-util --create empty.mbtiles
 
     Execute commands on all tiles in the mbtiles file:
-    $ mb-util --execute "COMMAND ARGUMENTS" [--execute "SECOND COMMAND"] world.mbtiles
+    $ mb-util --process --execute "COMMAND ARGUMENTS" [--execute "SECOND COMMAND"] world.mbtiles
 
     Merge two or more mbtiles files (receiver will be the first file):
     $ mb-util --merge receiver.mbtiles file1.mbtiles [file2.mbtiles ...]
 
-    Check if a mbtiles file contains all tiles at a specific zoom level and remove unused tiles:
-    $ mb-util --check world.mbtiles
+    Check if a mbtiles file contains all tiles at a specific zoom level:
+    $ mb-util --check --zoom=7 world.mbtiles
 
     Compact a mbtiles file by eliminating duplicate images:
     $ mb-util --compact world.mbtiles
@@ -64,7 +64,7 @@ if __name__ == '__main__':
 
     group.add_option("--check",
         dest='check', action="store_true",
-        help='''Check the database for missing tiles and remove unnecessary tiles.''',
+        help='''Check the database for missing tiles.''',
         default=False)
 
     group.add_option("--compact",
@@ -90,15 +90,15 @@ if __name__ == '__main__':
         action="store_true", default=False)
 
     group.add_option('--min-zoom', dest='min_zoom',
-        help='''Minimum zoom level for --export/--import/--merge/--execute/--check.''',
+        help='''Minimum zoom level for --export/--import/--merge/--process/--check.''',
         type="int", default=0)
 
     group.add_option('--max-zoom', dest='max_zoom',
-        help='''Maximum zoom level for --export/--import/--merge/--execute/--check.''',
+        help='''Maximum zoom level for --export/--import/--merge/--process/--check.''',
         type="int", default=255)
 
     group.add_option('--zoom', dest='zoom',
-        help='''Zoom level for --export/--import/--execute/--check. (Overrides --min-zoom and --max-zoom)''',
+        help='''Zoom level for --export/--import/--process/--check. (Overrides --min-zoom and --max-zoom)''',
         type='int', default=-1)
 
     group.add_option("--no-overwrite",
@@ -107,7 +107,7 @@ if __name__ == '__main__':
 
     group.add_option("--auto-commit",
         action="store_true", dest="auto_commit", default=False,
-        help='''Enable auto commit for --merge, --import, --execute.''')
+        help='''Enable auto commit for --merge, --import, --process.''')
 
     group.add_option("--check-before-merge",
         action="store_true", dest="check_before_merge", default=False,
@@ -115,11 +115,11 @@ if __name__ == '__main__':
 
     group.add_option("--no-vacuum",
         action="store_true", dest="skip_vacuum", default=False,
-        help='''don't VACUUM the mbtiles database after --import, --merge, --execute, --compact.''')
+        help='''don't VACUUM the mbtiles database after --import, --merge, --process, --compact.''')
 
     group.add_option("--no-analyze",
         action="store_true", dest="skip_analyze", default=False,
-        help='''don't ANALYZE the mbtiles database after --import, --merge, --execute, --compact.''')
+        help='''don't ANALYZE the mbtiles database after --import, --merge, --process, --compact.''')
 
     group.add_option("-q", "--quiet",
         action="store_true", dest="quiet", default=False,
