@@ -103,11 +103,11 @@ if __name__ == '__main__':
 
     group.add_option("--no-overwrite",
         action="store_true", dest="no_overwrite", default=False,
-        help='''don't overwrite existing tiles during --merge, --import.''')
+        help='''don't overwrite existing tiles during --merge/--import/--export.''')
 
     group.add_option("--auto-commit",
         action="store_true", dest="auto_commit", default=False,
-        help='''Enable auto commit for --merge, --import, --process.''')
+        help='''Enable auto commit for --merge/--import/--process.''')
 
     group.add_option("--check-before-merge",
         action="store_true", dest="check_before_merge", default=False,
@@ -119,11 +119,11 @@ if __name__ == '__main__':
 
     group.add_option("--no-vacuum",
         action="store_true", dest="skip_vacuum", default=False,
-        help='''don't VACUUM the mbtiles database after --import, --merge, --process, --compact.''')
+        help='''don't VACUUM the mbtiles database after --import/--merge/--process/--compact.''')
 
     group.add_option("--no-analyze",
         action="store_true", dest="skip_analyze", default=False,
-        help='''don't ANALYZE the mbtiles database after --import, --merge, --process, --compact.''')
+        help='''don't ANALYZE the mbtiles database after --import/--merge/--process/--compact.''')
 
     group.add_option("-q", "--quiet",
         action="store_true", dest="quiet", default=False,

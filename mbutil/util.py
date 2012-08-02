@@ -562,7 +562,8 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     if zoom >= 0:
         min_zoom = max_zoom = zoom
 
-    os.mkdir("%s" % directory_path)
+    if not os.path.isdir(directory_path):
+        os.mkdir(directory_path)
     metadata = dict(con.execute('select name, value from metadata;').fetchall())
     json.dump(metadata, open(os.path.join(directory_path, 'metadata.json'), 'w'), indent=4)
 
@@ -577,6 +578,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         os.makedirs(base_path)
 
     sending_mbtiles_is_compacted = (cur.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)
+    no_overwrite = kwargs.get('no_overwrite')
 
     tiles = cur.execute("""select zoom_level, tile_column, tile_row, tile_data from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
     t = tiles.fetchone()
@@ -597,10 +599,11 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         if not os.path.isdir(tile_dir):
             os.makedirs(tile_dir)
 
-        tile = os.path.join(tile_dir,'%s.%s' % (y, metadata.get('format', 'png')))
-        f = open(tile, 'wb')
-        f.write(tile_data)
-        f.close()
+        tile_file = os.path.join(tile_dir,'%s.%s' % (y, metadata.get('format', 'png')))
+        if no_overwrite == False or not os.path.isfile(tile_file):
+            f = open(tile_file, 'wb')
+            f.write(tile_data)
+            f.close()
 
         count = count + 1
         if (count % 100) == 0:
