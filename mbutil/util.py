@@ -413,6 +413,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         sys.exit(1)
 
     auto_commit = kwargs.get('auto_commit')
+    delete_after_export = kwargs.get('delete_after_export')
 
     con1 = mbtiles_connect(mbtiles_file1, auto_commit)
     cur1 = con1.cursor()
@@ -520,6 +521,17 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
         t = tiles.fetchone()
 
+    if delete_after_export:
+        logger.debug("WARNING: Removing merged tiles from %s" % (mbtiles_file2))
+
+        if existing_mbtiles_is_compacted:
+            cur2.execute("""delete from images where tile_id in (select tile_id from map where zoom_level>=? and zoom_level<=?);""", (min_zoom, max_zoom))
+            cur2.execute("""delete from map where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
+        else:
+            cur2.execute("""delete from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
+
+        con2.commit()
+
     logger.debug("%s tiles merged (%.1f tiles/sec)" % (count, count / (time.time() - start_time)))
     con1.commit()
     con1.close()
@@ -529,18 +541,11 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     logger.debug("Exporting MBTiles to disk: %s --> %s" % (mbtiles_file, directory_path))
 
+    delete_after_export = kwargs.get('delete_after_export')
+
     con = mbtiles_connect(mbtiles_file)
-
-    os.mkdir("%s" % directory_path)
-    metadata = dict(con.execute('select name, value from metadata;').fetchall())
-    json.dump(metadata, open(os.path.join(directory_path, 'metadata.json'), 'w'), indent=4)
-
-    count = con.execute('select count(zoom_level) from tiles;').fetchone()[0]
-    done = 0
-
-    base_path = os.path.join(directory_path, "tiles")
-    if not os.path.isdir(base_path):
-        os.makedirs(base_path)
+    cur = con.cursor()
+    optimize_connection(cur)
 
     zoom     = kwargs.get('zoom')
     min_zoom = kwargs.get('min_zoom')
@@ -549,7 +554,21 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     if zoom >= 0:
         min_zoom = max_zoom = zoom
 
-    tiles = con.execute("""select zoom_level, tile_column, tile_row, tile_data from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
+    os.mkdir("%s" % directory_path)
+    metadata = dict(con.execute('select name, value from metadata;').fetchall())
+    json.dump(metadata, open(os.path.join(directory_path, 'metadata.json'), 'w'), indent=4)
+
+    total_tiles = con.execute("""select count(zoom_level) from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom)).fetchone()[0]
+    count = 0
+    start_time = time.time()
+
+    base_path = os.path.join(directory_path, "tiles")
+    if not os.path.isdir(base_path):
+        os.makedirs(base_path)
+
+    existing_mbtiles_is_compacted = (cur.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)
+
+    tiles = cur.execute("""select zoom_level, tile_column, tile_row, tile_data from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
     t = tiles.fetchone()
     while t:
         z = t[0]
@@ -573,10 +592,23 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         f.write(tile_data)
         f.close()
 
-        done = done + 1
-        logger.debug('%s / %s tiles exported' % (done, count))
+        count = count + 1
+        if (count % 100) == 0:
+            logger.debug("%s / %s tiles exported (%.1f tiles/sec)" % (count, total_tiles, count / (time.time() - start_time)))
         t = tiles.fetchone()
 
+    if delete_after_export:
+        logger.debug("WARNING: Removing exported tiles from %s" % (mbtiles_file))
+
+        if existing_mbtiles_is_compacted:
+            cur.execute("""delete from images where tile_id in (select tile_id from map where zoom_level>=? and zoom_level<=?);""", (min_zoom, max_zoom))
+            cur.execute("""delete from map where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
+        else:
+            cur.execute("""delete from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
+
+        con.commit()
+
+    logger.debug("%s / %s tiles exported (%.1f tiles/sec)" % (count, total_tiles, count / (time.time() - start_time)))
     con.close()
 
 
