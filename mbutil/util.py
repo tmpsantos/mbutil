@@ -210,6 +210,12 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
         logger.info("The mbtiles file must be compacted, exiting...")
         return
 
+    image_format = 'png'
+    try:
+        image_format = cur.execute("select value from metadata where name='format';").fetchone()[0]
+    except:
+        pass
+
     count = 0
     duplicates = 0
     chunk = 100
@@ -246,7 +252,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
                 processed_tile_ids.add(tile_id)
 
                 # Execute commands
-                tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data)
+                tile_data = execute_commands_on_tile(kwargs['command_list'], image_format, tile_data)
                 if tile_data and len(tile_data) > 0:
                     m = hashlib.md5()
                     m.update(tile_data)
@@ -373,7 +379,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
                             # Execute commands
                             if kwargs['command_list']:
-                                tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data)
+                                tile_data = execute_commands_on_tile(kwargs['command_list'], image_format, tile_data)
 
                             if existing_mbtiles_is_compacted:
                                 m = hashlib.md5()
@@ -559,6 +565,8 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     metadata = dict(con.execute('select name, value from metadata;').fetchall())
     json.dump(metadata, open(os.path.join(directory_path, 'metadata.json'), 'w'), indent=4)
 
+    image_format = metadata.get('format', 'png')
+
     total_tiles = con.execute("""select count(zoom_level) from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom)).fetchone()[0]
     count = 0
     start_time = time.time()
@@ -579,7 +587,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
 
         # Execute commands
         if kwargs['command_list']:
-            tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data)
+            tile_data = execute_commands_on_tile(kwargs['command_list'], image_format, tile_data)
 
         if kwargs.get('flip_y') == True:
           y = flip_y(z, y)
