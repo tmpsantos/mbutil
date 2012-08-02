@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
-    logger.debug("Merging MBTiles databases: %s --> %s" % (mbtiles_file2, mbtiles_file1))
+    logger.info("Merging MBTiles databases: %s --> %s" % (mbtiles_file2, mbtiles_file1))
 
     check_before_merge = kwargs.get('check_before_merge')
     if check_before_merge and not check_mbtiles(mbtiles_file2, **kwargs):
@@ -171,7 +171,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
             t = tiles.fetchone()
 
-    logger.debug("%s tiles merged (100.0%%, %.1f tiles/sec)" % (count, count / (time.time() - start_time)))
+    logger.info("%s tiles merged (100.0%%, %.1f tiles/sec)" % (count, count / (time.time() - start_time)))
 
     if delete_after_export:
         logger.debug("WARNING: Removing merged tiles from %s" % (mbtiles_file2))

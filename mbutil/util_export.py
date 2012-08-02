@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
-    logger.debug("Exporting MBTiles to disk: %s --> %s" % (mbtiles_file, directory_path))
+    logger.info("Exporting MBTiles to disk: %s --> %s" % (mbtiles_file, directory_path))
 
     delete_after_export = kwargs.get('delete_after_export')
 
@@ -69,7 +69,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
             logger.debug("%s / %s tiles exported (%.1f%%, %.1f tiles/sec)" % (count, total_tiles, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
         t = tiles.fetchone()
 
-    logger.debug("%s / %s tiles exported (100.0%%, %.1f tiles/sec)" % (count, total_tiles, count / (time.time() - start_time)))
+    logger.info("%s / %s tiles exported (100.0%%, %.1f tiles/sec)" % (count, total_tiles, count / (time.time() - start_time)))
 
     if delete_after_export:
         logger.debug("WARNING: Removing exported tiles from %s" % (mbtiles_file))

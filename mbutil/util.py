@@ -70,11 +70,11 @@ def mbtiles_setup(cur):
 
 def optimize_database(cur, skip_analyze, skip_vacuum):
     if not skip_analyze:
-        logger.debug('analyzing db')
+        logger.info('analyzing db')
         cur.execute("""ANALYZE;""")
 
     if not skip_vacuum:
-        logger.debug('cleaning db')
+        logger.info('cleaning db')
         cur.execute("""VACUUM;""")
 
 

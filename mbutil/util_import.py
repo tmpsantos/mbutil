@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
-    logger.debug("Importing from disk to MBTiles: %s --> %s" % (directory_path, mbtiles_file))
+    logger.info("Importing from disk to MBTiles: %s --> %s" % (directory_path, mbtiles_file))
 
     import_into_existing_mbtiles = os.path.isfile(mbtiles_file)
     existing_mbtiles_is_compacted = True
@@ -131,6 +131,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                                 for c in msg: sys.stdout.write(chr(8))
                                 logger.debug("%s tiles imported (%d tiles/sec)" % (count, count / (time.time() - start_time)))
 
-    logger.debug("%d tiles imported." % (count))
+    logger.info("%d tiles imported." % (count))
+
     con.commit()
     con.close()

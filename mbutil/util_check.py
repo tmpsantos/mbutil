@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 def check_mbtiles(mbtiles_file, **kwargs):
-    logger.debug("Checking MBTiles database %s" % (mbtiles_file))
+    logger.info("Checking MBTiles database %s" % (mbtiles_file))
 
     result = True
 

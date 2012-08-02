@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
-    logger.debug("Executing commands on MBTiles database %s" % (mbtiles_file))
+    logger.info("Executing commands on MBTiles database %s" % (mbtiles_file))
 
     if kwargs['command_list'] == None or len(kwargs['command_list']) == 0:
         return
@@ -82,6 +82,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
             if (count % 100) == 0:
                 logger.debug("%s tiles finished (%.1f%%, %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
 
-    logger.debug("%s tiles finished, %d duplicates ignored (100.0%%, %.1f tiles/sec)" % (count, duplicates, count / (time.time() - start_time)))
+    logger.info("%s tiles finished, %d duplicates ignored (100.0%%, %.1f tiles/sec)" % (count, duplicates, count / (time.time() - start_time)))
+
     con.commit()
     con.close()

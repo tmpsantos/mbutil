@@ -6,7 +6,7 @@ from util import mbtiles_connect, optimize_connection, optimize_database, execut
 
 
 def compact_mbtiles(mbtiles_file):
-    logger.debug("Compacting MBTiles database %s" % (mbtiles_file))
+    logger.info("Compacting MBTiles database %s" % (mbtiles_file))
 
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
@@ -65,7 +65,7 @@ def compact_mbtiles(mbtiles_file):
             if (count % 100) == 0:
                 logger.debug("%s tiles finished, %d unique, %d duplicates (%.1f%%, %.1f tiles/sec)" % (count, unique, overlapping, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
 
-    logger.debug("%s tiles finished, %d unique, %d duplicates (100.0%%, %.1f tiles/sec)" % (count, unique, overlapping, count / (time.time() - start_time)))
+    logger.info("%s tiles finished, %d unique, %d duplicates (100.0%%, %.1f tiles/sec)" % (count, unique, overlapping, count / (time.time() - start_time)))
 
     compaction_finalize(cur)
     con.commit()
