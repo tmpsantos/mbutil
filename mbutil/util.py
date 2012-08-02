@@ -101,10 +101,7 @@ def compact_mbtiles(mbtiles_file):
     cur = con.cursor()
     optimize_connection(cur)
 
-    cur.execute("select count(name) from sqlite_master where type='table' AND name='images';")
-    res = cur.fetchone()
-    existing_mbtiles_is_compacted = (res[0] > 0)
-
+    existing_mbtiles_is_compacted = (cur.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)
     if existing_mbtiles_is_compacted:
         logger.info("The mbtiles file is already compacted")
         return
@@ -155,7 +152,7 @@ def compact_mbtiles(mbtiles_file):
 
             count = count + 1
             if (count % 100) == 0:
-                logger.debug("%s tiles finished, %d unique, %d duplicates (%.1f tiles/sec)" % (count, unique, overlapping, count / (time.time() - start_time)))
+                logger.debug("%s tiles finished, %d unique, %d duplicates (%.1f%%, %.1f tiles/sec)" % (count, unique, overlapping, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
 
     logger.debug("%s tiles finished, %d unique, %d duplicates (%.1f tiles/sec)" % (count, unique, overlapping, count / (time.time() - start_time)))
 
@@ -208,6 +205,11 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     cur = con.cursor()
     optimize_connection(cur)
 
+    existing_mbtiles_is_compacted = (cur.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)
+    if not existing_mbtiles_is_compacted:
+        logger.info("The mbtiles file is not compacted, exiting...")
+        return
+
     count = 0
     duplicates = 0
     chunk = 100
@@ -221,14 +223,10 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     if zoom >= 0:
         min_zoom = max_zoom = zoom
 
-    cur.execute("""select count(tile_id) from map where zoom_level>=? and zoom_level<=?""", (min_zoom, max_zoom))
-    res = cur.fetchone()
-    total_tiles = res[0]
-    logging.debug("%d total tiles" % total_tiles)
+    total_tiles = (cur.execute("""select count(tile_id) from map where zoom_level>=? and zoom_level<=?""", (min_zoom, max_zoom)).fetchone()[0])
+    max_rowid = (cur.execute("select max(rowid) from map").fetchone()[0])
 
-    cur.execute("select max(rowid) from map")
-    res = cur.fetchone()
-    max_rowid = res[0]
+    logging.debug("%d total tiles to process" % (total_tiles))
 
     for i in range((max_rowid / chunk) + 1):
         cur.execute("""select images.tile_id, images.tile_data, map.zoom_level, map.tile_column, map.tile_row from map, images where (map.rowid > ? and map.rowid <= ?) and (map.zoom_level>=? and map.zoom_level<=?) and (images.tile_id == map.tile_id)""",
@@ -397,9 +395,9 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                             count = count + 1
                             if (count % 100) == 0:
                                 for c in msg: sys.stdout.write(chr(8))
-                                logger.debug("%s tiles inserted (%d tiles/sec)" % (count, count / (time.time() - start_time)))
+                                logger.debug("%s tiles imported (%d tiles/sec)" % (count, count / (time.time() - start_time)))
 
-    logger.debug('tiles inserted.')
+    logger.debug("%d tiles imported." % (count))
     con.commit()
     con.close()
 
@@ -419,10 +417,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     cur1 = con1.cursor()
     optimize_connection(cur1, False)
 
-    cur1.execute("select count(name) from sqlite_master where type='table' AND name='images';")
-    res = cur1.fetchone()
-    existing_mbtiles_is_compacted = (res[0] > 0)
-
+    existing_mbtiles_is_compacted = (cur1.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)
     if not existing_mbtiles_is_compacted:
         sys.stderr.write('To merge two MBTiles, the receiver must already be compacted\n')
         sys.exit(1)
@@ -481,6 +476,8 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     start_time = time.time()
     known_tile_ids = set()
 
+    total_tiles = (cur2.execute("""select count(*) from tiles where zoom_level>=? and zoom_level<=?""", (min_zoom, max_zoom)).fetchone()[0])
+
     tiles = cur2.execute("""select zoom_level, tile_column, tile_row, tile_data from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
     t = tiles.fetchone()
     while t:
@@ -517,9 +514,11 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         known_tile_ids.add(tile_id)
         count = count + 1
         if (count % 100) == 0:
-            logger.debug("%s tiles merged (%.1f tiles/sec)" % (count, count / (time.time() - start_time)))
+            logger.debug("%s tiles merged (%.1f%% %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
 
         t = tiles.fetchone()
+
+    logger.debug("%s tiles merged (%.1f tiles/sec)" % (count, count / (time.time() - start_time)))
 
     if delete_after_export:
         logger.debug("WARNING: Removing merged tiles from %s" % (mbtiles_file2))
@@ -532,7 +531,6 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
         con2.commit()
 
-    logger.debug("%s tiles merged (%.1f tiles/sec)" % (count, count / (time.time() - start_time)))
     con1.commit()
     con1.close()
     con2.close()
@@ -597,6 +595,8 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
             logger.debug("%s / %s tiles exported (%.1f tiles/sec)" % (count, total_tiles, count / (time.time() - start_time)))
         t = tiles.fetchone()
 
+    logger.debug("%s / %s tiles exported (%.1f tiles/sec)" % (count, total_tiles, count / (time.time() - start_time)))
+
     if delete_after_export:
         logger.debug("WARNING: Removing exported tiles from %s" % (mbtiles_file))
 
@@ -608,7 +608,6 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
 
         con.commit()
 
-    logger.debug("%s / %s tiles exported (%.1f tiles/sec)" % (count, total_tiles, count / (time.time() - start_time)))
     con.close()
 
 
