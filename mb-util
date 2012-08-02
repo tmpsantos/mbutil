@@ -117,13 +117,13 @@ if __name__ == '__main__':
         action="store_true", dest="delete_after_export", default=False,
         help='''DANGEROUS!!! After a --merge or --export, this option will delete all the merged/exported tiles from the (sending) database. Only really usefull with --min-zoom/--max-zoom or --zoom since it would remove all tiles from the database otherwise.''')
 
-    group.add_option("--no-vacuum",
-        action="store_true", dest="skip_vacuum", default=False,
-        help='''don't VACUUM the mbtiles database after --import/--merge/--process/--compact.''')
+    group.add_option("--vacuum",
+        action="store_false", dest="skip_vacuum", default=True,
+        help='''VACUUM the mbtiles database after --import/--merge/--process/--compact.''')
 
-    group.add_option("--no-analyze",
-        action="store_true", dest="skip_analyze", default=False,
-        help='''don't ANALYZE the mbtiles database after --import/--merge/--process/--compact.''')
+    group.add_option("--analyze",
+        action="store_false", dest="skip_analyze", default=True,
+        help='''ANALYZE the mbtiles database after --import/--merge/--process/--compact.''')
 
     group.add_option("-q", "--quiet",
         action="store_true", dest="quiet", default=False,
