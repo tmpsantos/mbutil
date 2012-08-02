@@ -154,7 +154,7 @@ def compact_mbtiles(mbtiles_file):
             if (count % 100) == 0:
                 logger.debug("%s tiles finished, %d unique, %d duplicates (%.1f%%, %.1f tiles/sec)" % (count, unique, overlapping, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
 
-    logger.debug("%s tiles finished, %d unique, %d duplicates (%.1f tiles/sec)" % (count, unique, overlapping, count / (time.time() - start_time)))
+    logger.debug("%s tiles finished, %d unique, %d duplicates (100.0%%, %.1f tiles/sec)" % (count, unique, overlapping, count / (time.time() - start_time)))
 
     compaction_finalize(cur)
     con.commit()
@@ -270,7 +270,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
             if (count % 100) == 0:
                 logger.debug("%s tiles finished (%.1f%%, %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
 
-    logger.debug("%s tiles finished, %d duplicates ignored (%.1f tiles/sec)" % (count, duplicates, count / (time.time() - start_time)))
+    logger.debug("%s tiles finished, %d duplicates ignored (100.0%%, %.1f tiles/sec)" % (count, duplicates, count / (time.time() - start_time)))
     con.commit()
     con.close()
 
@@ -603,10 +603,10 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
 
         count = count + 1
         if (count % 100) == 0:
-            logger.debug("%s / %s tiles exported (%.1f tiles/sec)" % (count, total_tiles, count / (time.time() - start_time)))
+            logger.debug("%s / %s tiles exported (%.1f%%, %.1f tiles/sec)" % (count, total_tiles, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
         t = tiles.fetchone()
 
-    logger.debug("%s / %s tiles exported (%.1f tiles/sec)" % (count, total_tiles, count / (time.time() - start_time)))
+    logger.debug("%s / %s tiles exported (100.0%%, %.1f tiles/sec)" % (count, total_tiles, count / (time.time() - start_time)))
 
     if delete_after_export:
         logger.debug("WARNING: Removing exported tiles from %s" % (mbtiles_file))
