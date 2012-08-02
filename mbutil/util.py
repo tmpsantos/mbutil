@@ -538,6 +538,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         else:
             cur2.execute("""delete from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
 
+        optimize_database(cur2, kwargs.get('skip_analyze', False), kwargs.get('skip_vacuum', False))
         con2.commit()
 
     con1.commit()
@@ -617,6 +618,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         else:
             cur.execute("""delete from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
 
+        optimize_database(cur, kwargs.get('skip_analyze', False), kwargs.get('skip_vacuum', False))
         con.commit()
 
     con.close()
