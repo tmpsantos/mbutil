@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
-    logger.info("Executing commands on MBTiles database %s" % (mbtiles_file))
+    logger.info("Executing commands on database %s" % (mbtiles_file))
 
     if kwargs['command_list'] == None or len(kwargs['command_list']) == 0:
         return

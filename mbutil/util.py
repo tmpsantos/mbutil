@@ -20,7 +20,6 @@ def mbtiles_connect(mbtiles_file, auto_commit=False):
 
 
 def optimize_connection(cur, exclusive_lock=True):
-    cur.execute("""PRAGMA synchronous=0""")
     cur.execute("""PRAGMA journal_mode=DELETE""")
     if exclusive_lock:
         cur.execute("""PRAGMA locking_mode=EXCLUSIVE""")
