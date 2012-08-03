@@ -1,6 +1,6 @@
 import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile
 
-from util import mbtiles_connect, optimize_connection, optimize_database, execute_commands_on_tile
+from util import mbtiles_connect, optimize_connection, optimize_database, execute_commands_on_tile, flip_y
 
 logger = logging.getLogger(__name__)
 
