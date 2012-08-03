@@ -41,16 +41,17 @@ Python installation (requires easy_install)
     $ mb-util --create empty.mbtiles
 
     Execute commands on all tiles in the mbtiles file:
-    $ mb-util --execute "COMMAND ARGUMENTS" [--execute "SECOND COMMAND"] world.mbtiles
+    $ mb-util --process --execute "COMMAND ARGUMENTS" [--execute "SECOND COMMAND"] world.mbtiles
 
     Merge two or more mbtiles files (receiver will be the first file):
     $ mb-util --merge receiver.mbtiles file1.mbtiles [file2.mbtiles ...]
 
-    Check if a mbtiles file contains all tiles at a specific zoom level and remove unused tiles:
-    $ mb-util --check world.mbtiles
+    Check if a mbtiles file contains all tiles at a specific zoom level:
+    $ mb-util --check --zoom=7 world.mbtiles
 
     Compact a mbtiles file by eliminating duplicate images:
     $ mb-util --compact world.mbtiles
+
 
     Options:
         -h, --help            show this help message and exit
@@ -66,30 +67,43 @@ Python installation (requires easy_install)
                             will be overwritten with the imported tiles.
         -m, --merge         Merge two or more databases. The receiver will be
                             created if it doesn't yet exist.
-        --check             Check the database for missing tiles and remove
-                            unnecessary tiles.
+        -p, --process       Processes a mbtiles databases. Only usefull together
+                            with one or more --execute.
+        --check             Check the database for missing tiles.
         --compact           Eliminate duplicate images to reduce mbtiles filesize.
         --create            Create an empty mbtiles database.
-        --execute=COMMAND   Commands to execute for each tile image. %s will be
-                            replaced with the file name. This argument may be
-                            repeated several times and can also be used together with
-                            --import/--export/--merge/--compact.
 
     Options:
+        --execute=COMMAND   Commands to execute for each tile image. %s will be
+                            replaced with the file name. This argument may be
+                            repeated several times and can be used together with
+                            --import/--export/--merge/--compact/--process.
         --flip-y            Flip the y tile coordinate during
                             --export/--import/--merge.
         --min-zoom=MIN_ZOOM
                             Minimum zoom level for
-                            --export/--import/--merge/--execute/--check.
+                            --export/--import/--merge/--process/--check.
         --max-zoom=MAX_ZOOM
                             Maximum zoom level for
-                            --export/--import/--merge/--execute/--check.
-        --no-overwrite      don't overwrite existing tiles during --merge,
-                            --import.
-        --no-vacuum         don't VACUUM the mbtiles database after --import,
-                            --merge, --execute, --compact.
-        --no-analyze        don't ANALYZE the mbtiles database after --import,
-                            --merge, --execute, --compact.
+                            --export/--import/--merge/--process/--check.
+        --zoom=ZOOM         Zoom level for --export/--import/--process/--check.
+                            (Overrides --min-zoom and --max-zoom)
+        --no-overwrite      don't overwrite existing tiles during
+                            --merge/--import/--export.
+        --auto-commit       Enable auto commit for --merge/--import/--process.
+        --check-before-merge
+                            Runs some basic checks (like --check) on mbtiles
+                            before merging them.
+        --delete-after-export
+                            DANGEROUS!!! After a --merge or --export, this option
+                            will delete all the merged/exported tiles from the
+                            (sending) database. Only really usefull with --min-
+                            zoom/--max-zoom or --zoom since it would remove all
+                            tiles from the database otherwise.
+        --vacuum            VACUUM the mbtiles database after
+                            --import/--merge/--process/--compact.
+        --analyze           ANALYZE the mbtiles database after
+                            --import/--merge/--process/--compact.
         -q, --quiet         don't print any status messages to stdout except
                             errors.
         -d, --debug         print debug messages to stdout (exclusive to --quiet).
