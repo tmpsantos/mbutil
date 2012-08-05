@@ -1,8 +1,22 @@
-import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile
+import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile, multiprocessing
 
 from util import mbtiles_connect, mbtiles_setup, optimize_connection, optimize_database, execute_commands_on_tile
+from multiprocessing import Pool
 
 logger = logging.getLogger(__name__)
+
+
+def process_tile_init(queue):
+    sys.stderr.write("init")
+    process_tile.queue = queue
+
+def process_tile(next_tile):
+    tile_id, tile_data, image_format = next_tile[0], next_tile[1], next_tile[2]
+    sys.stderr.write("%s\n" % (tile_id, ))
+
+    # tile_data = execute_commands_on_tile(kwargs['command_list'], image_format, tile_data)
+
+    return tile_id
 
 
 def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
@@ -41,10 +55,14 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     if zoom >= 0:
         min_zoom = max_zoom = zoom
 
-    total_tiles = (cur.execute("""select count(tile_id) from map where zoom_level>=? and zoom_level<=?""", (min_zoom, max_zoom)).fetchone()[0])
+    total_tiles = (cur.execute("""select count(distinct(tile_id)) from map where zoom_level>=? and zoom_level<=?""", (min_zoom, max_zoom)).fetchone()[0])
     max_rowid = (cur.execute("select max(rowid) from map").fetchone()[0])
 
     logging.debug("%d total tiles to process" % (total_tiles))
+
+    multiprocessing.log_to_stderr(logging.DEBUG)
+    pool = Pool(None, process_tile_init)
+    tiles_to_process = []
 
     for i in range((max_rowid / chunk) + 1):
         cur.execute("""select images.tile_id, images.tile_data, map.zoom_level, map.tile_column, map.tile_row from map, images where (map.rowid > ? and map.rowid <= ?) and (map.zoom_level>=? and map.zoom_level<=?) and (images.tile_id == map.tile_id)""",
@@ -63,20 +81,27 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
             else:
                 processed_tile_ids.add(tile_id)
 
-                # Execute commands
-                tile_data = execute_commands_on_tile(kwargs['command_list'], image_format, tile_data)
-                if tile_data and len(tile_data) > 0:
-                    m = hashlib.md5()
-                    m.update(tile_data)
-                    new_tile_id = m.hexdigest()
+                tiles_to_process.append(tile_id)
 
-                    cur.execute("""insert or ignore into images (tile_id, tile_data) values (?, ?);""",
-                        (new_tile_id, sqlite3.Binary(tile_data)))
-                    cur.execute("""update map set tile_id=? where tile_id=?;""",
-                        (new_tile_id, tile_id))
-                    if tile_id != new_tile_id:
-                        cur.execute("""delete from images where tile_id=?;""",
-                            [tile_id])
+        # Execute commands
+        processed_tiles = pool.map(process_tile, (tiles_to_process, ))
+
+        for tile_id in processed_tiles:
+
+            logging.debug("Tile %s done\n" % (tile_id, ))
+
+            # if tile_data and len(tile_data) > 0:
+            #     m = hashlib.md5()
+            #     m.update(tile_data)
+            #     new_tile_id = m.hexdigest()
+
+            #     cur.execute("""insert or ignore into images (tile_id, tile_data) values (?, ?);""",
+            #         (new_tile_id, sqlite3.Binary(tile_data)))
+            #     cur.execute("""update map set tile_id=? where tile_id=?;""",
+            #         (new_tile_id, tile_id))
+            #     if tile_id != new_tile_id:
+            #         cur.execute("""delete from images where tile_id=?;""",
+            #         [tile_id])
 
             count = count + 1
             if (count % 100) == 0:
@@ -84,5 +109,6 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
     logger.info("%s tiles finished, %d duplicates ignored (100.0%%, %.1f tiles/sec)" % (count, duplicates, count / (time.time() - start_time)))
 
+    pool.close()
     con.commit()
     con.close()
