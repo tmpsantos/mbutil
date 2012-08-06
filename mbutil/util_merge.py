@@ -25,8 +25,8 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     cur2 = con2.cursor()
     optimize_connection(cur2)
 
-    receiving_mbtiles_is_compacted = (cur1.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)
-    sending_mbtiles_is_compacted = (cur2.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)
+    receiving_mbtiles_is_compacted = (con1.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)
+    sending_mbtiles_is_compacted = (con2.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)
     if not receiving_mbtiles_is_compacted:
         con1.close()
         con2.close()
@@ -36,8 +36,8 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     # Check that the old and new image formats are the same
     original_format = new_format = None
     try:
-        original_format = cur1.execute("select value from metadata where name='format';").fetchone()[0]
-        new_format = cur2.execute("select value from metadata where name='format';").fetchone()[0]
+        original_format = con1.execute("select value from metadata where name='format';").fetchone()[0]
+        new_format = con2.execute("select value from metadata where name='format';").fetchone()[0]
     except:
         pass
 
@@ -46,7 +46,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         sys.exit(1)
 
     if original_format == None and new_format != None:
-        cur1.execute("""insert or ignore into metadata (name, value) values ("format", ?)""", [new_format])
+        con1.execute("""insert or ignore into metadata (name, value) values ("format", ?)""", [new_format])
         con1.commit()
 
     zoom     = kwargs.get('zoom')
