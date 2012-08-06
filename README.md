@@ -100,6 +100,9 @@ Python installation (requires easy_install)
                             (sending) database. Only really usefull with --min-
                             zoom/--max-zoom or --zoom since it would remove all
                             tiles from the database otherwise.
+        --poolsize=POOLSIZE
+                            Pool size for processing tiles with --process. Default
+                            is to use a pool size equal to the number of cpus/cores.
         --vacuum            VACUUM the mbtiles database after
                             --import/--merge/--process/--compact.
         --analyze           ANALYZE the mbtiles database after

@@ -117,6 +117,10 @@ if __name__ == '__main__':
         action="store_true", dest="delete_after_export", default=False,
         help='''DANGEROUS!!! After a --merge or --export, this option will delete all the merged/exported tiles from the (sending) database. Only really usefull with --min-zoom/--max-zoom or --zoom since it would remove all tiles from the database otherwise.''')
 
+    group.add_option("--poolsize",
+        type="int", default=-1,
+        help="""Pool size for processing tiles with --process. Default is to use a pool size equal to the number of cpus/cores.""")
+
     group.add_option("--vacuum",
         action="store_false", dest="skip_vacuum", default=True,
         help='''VACUUM the mbtiles database after --import/--merge/--process/--compact.''')
