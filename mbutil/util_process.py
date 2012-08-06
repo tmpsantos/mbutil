@@ -1,18 +1,9 @@
 import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile, multiprocessing
 
-from util import mbtiles_connect, mbtiles_setup, optimize_connection, optimize_database, execute_commands_on_tile, execute_commands_on_file
+from util import mbtiles_connect, mbtiles_setup, optimize_connection, optimize_database, process_tile
 from multiprocessing import Pool
 
 logger = logging.getLogger(__name__)
-
-
-def process_tile(next_tile):
-    tile_id, tile_file_path, image_format, command_list = next_tile[0], next_tile[1], next_tile[2], next_tile[3]
-    # sys.stderr.write("%s (%s) -> %s\n" % (tile_id, image_format, tile_file_path))
-
-    tile_data = execute_commands_on_file(command_list, image_format, tile_file_path)
-
-    return next_tile
 
 
 def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
@@ -51,10 +42,10 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     if zoom >= 0:
         min_zoom = max_zoom = zoom
 
-    total_tiles = (cur.execute("""select count(distinct(tile_id)) from map where zoom_level>=? and zoom_level<=?""", (min_zoom, max_zoom)).fetchone()[0])
-    max_rowid = (cur.execute("select max(rowid) from map").fetchone()[0])
+    total_tiles = (con.execute("""select count(distinct(tile_id)) from map where zoom_level>=? and zoom_level<=?""", (min_zoom, max_zoom)).fetchone()[0])
+    max_rowid = (con.execute("select max(rowid) from map").fetchone()[0])
 
-    logger.debug("%d total tiles to process" % (total_tiles))
+    logger.debug("%d tiles to process" % (total_tiles))
 
     multiprocessing.log_to_stderr(logger.level)
 
@@ -90,13 +81,18 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
                 tmp_file.write(tile_data)
                 tmp_file.close()
 
-                tiles_to_process.append([tile_id, tmp_file_name, image_format, kwargs['command_list']])
+                tiles_to_process.append({
+                    'tile_id':tile_id,
+                    'filename':tmp_file_name,
+                    'format':image_format,
+                    'command_list':kwargs['command_list']
+                    })
 
         # Execute commands
         processed_tiles = pool.map(process_tile, tiles_to_process)
 
         for next_tile in processed_tiles:
-            tile_id, tile_file_path, image_format = next_tile[0], next_tile[1], next_tile[2]
+            tile_id, tile_file_path = next_tile['tile_id'], next_tile['filename']
 
             tmp_file = open(tile_file_path, "r")
             tile_data = tmp_file.read()

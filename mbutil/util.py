@@ -127,3 +127,12 @@ def execute_commands_on_file(command_list, image_format, image_file_path):
         os.system(command % (image_file_path))
 
     return True
+
+
+def process_tile(next_tile):
+    tile_id, tile_file_path, image_format, command_list = next_tile['tile_id'], next_tile['filename'], next_tile['format'], next_tile['command_list']
+    # sys.stderr.write("%s (%s) -> %s\n" % (tile_id, image_format, tile_file_path))
+
+    tile_data = execute_commands_on_file(command_list, image_format, tile_file_path)
+
+    return next_tile
