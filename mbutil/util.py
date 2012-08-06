@@ -116,3 +116,14 @@ def execute_commands_on_tile(command_list, image_format, tile_data):
     os.remove(tmp_file_name)
 
     return new_tile_data
+
+
+def execute_commands_on_file(command_list, image_format, image_file_path):
+    if command_list == None or image_file_path == None or not os.path.isfile(image_file_path):
+        return False
+
+    for command in command_list:
+        # logger.debug("Executing command: %s" % command)
+        os.system(command % (image_file_path))
+
+    return True
