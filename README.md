@@ -112,9 +112,15 @@ Python installation (requires easy_install)
                             errors.
         -d, --debug         print debug messages to stdout (exclusive to --quiet).
 
+
+## Special considerations
+
+* All mbtiles databases must be on the same host as mb-util, due to the WAL locking mode used for SQLite.
+
 ## Requirements
 
 * Python `>= 2.6`
+* SQLite `>= 3.7.0`
 
 ## Metadata
 
