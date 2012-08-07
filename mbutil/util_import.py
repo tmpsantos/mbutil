@@ -6,23 +6,32 @@ logger = logging.getLogger(__name__)
 
 
 def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
-    logger.info("Importing from disk to MBTiles: %s --> %s" % (directory_path, mbtiles_file))
+    logger.info("Importing from disk to database: %s --> %s" % (directory_path, mbtiles_file))
+
 
     import_into_existing_mbtiles = os.path.isfile(mbtiles_file)
     existing_mbtiles_is_compacted = True
 
-    auto_commit = kwargs.get('auto_commit')
+    no_overwrite = kwargs.get('no_overwrite', False)
+    auto_commit  = kwargs.get('auto_commit', False)
+    zoom     = kwargs.get('zoom', -1)
+    min_zoom = kwargs.get('min_zoom', 0)
+    max_zoom = kwargs.get('max_zoom', 255)
+
+    if zoom >= 0:
+        min_zoom = max_zoom = zoom
+
 
     con = mbtiles_connect(mbtiles_file, auto_commit)
     cur = con.cursor()
     optimize_connection(cur, False)
 
+
     if import_into_existing_mbtiles:
-        cur.execute("select count(name) from sqlite_master where type='table' AND name='images';")
-        res = cur.fetchone()
-        existing_mbtiles_is_compacted = (res[0] > 0)
+        existing_mbtiles_is_compacted = (con.execute("SELECT count(name) FROM sqlite_master WHERE type='table' AND name='images'").fetchone()[0] > 0)
     else:
         mbtiles_setup(cur)
+
 
     image_format = 'png'
     try:
@@ -32,8 +41,9 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
         # Check that the old and new image formats are the same
         if import_into_existing_mbtiles:
             original_format = None
+
             try:
-                original_format = cur.execute("select value from metadata where name='format';").fetchone()[0]
+                original_format = cur.execute("SELECT value FROM metadata WHERE name='format'").fetchone()[0]
             except:
                 pass
 
@@ -43,7 +53,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
         if not import_into_existing_mbtiles:
             for name, value in metadata.items():
-                cur.execute('insert or ignore into metadata (name, value) values (?, ?)',
+                cur.execute('INSERT OR IGNORE INTO metadata (name, value) VALUES (?, ?)',
                         (name, value))
             con.commit()
             logger.info('metadata from metadata.json restored')
@@ -51,17 +61,13 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     except IOError:
         logger.warning('metadata.json not found')
 
-    zoom     = kwargs.get('zoom')
-    min_zoom = kwargs.get('min_zoom')
-    max_zoom = kwargs.get('max_zoom')
-    no_overwrite = kwargs.get('no_overwrite')
-
-    if zoom >= 0:
-        min_zoom = max_zoom = zoom
 
     existing_tiles = {}
+
     if no_overwrite:
-        tiles = cur.execute("""select zoom_level, tile_column, tile_row from tiles where zoom_level>=? and zoom_level<=?;""", (min_zoom, max_zoom))
+        tiles = cur.execute("""SELECT zoom_level, tile_column, tile_row FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
+            (min_zoom, max_zoom))
+
         t = tiles.fetchone()
         while t:
             z = str(t[0])
@@ -81,9 +87,11 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
             row.add(x)
             t = tiles.fetchone()
 
+
     count = 0
     start_time = time.time()
-    msg = ""
+
+
     for r1, zs, ignore in os.walk(os.path.join(directory_path, "tiles")):
         for z in zs:
             if int(z) < min_zoom or int(z) > max_zoom:
@@ -100,7 +108,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                                     logging.debug("Ignoring tile (%s, %s, %s)" % (z, x, y))
                                     continue
 
-                            if kwargs.get('flip_y') == True:
+                            if kwargs.get('flip_y', False) == True:
                                 y = flip_y(z, y)
 
                             f = open(os.path.join(r1, z, x, y) + '.' + extension, 'rb')
@@ -108,7 +116,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                             f.close()
 
                             # Execute commands
-                            if kwargs['command_list']:
+                            if kwargs.get('command_list'):
                                 tile_data = execute_commands_on_tile(kwargs['command_list'], image_format, tile_data)
 
                             if existing_mbtiles_is_compacted:
@@ -116,20 +124,21 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                                 m.update(tile_data)
                                 tile_id = m.hexdigest()
 
-                                cur.execute("""insert or ignore into images (tile_id, tile_data) values (?, ?);""",
+                                cur.execute("""INSERT OR IGNORE INTO images (tile_id, tile_data) VALUES (?, ?)""",
                                     (tile_id, sqlite3.Binary(tile_data)))
 
-                                cur.execute("""replace into map (zoom_level, tile_column, tile_row, tile_id)
-                                    values (?, ?, ?, ?);""",
+                                cur.execute("""REPLACE INTO map (zoom_level, tile_column, tile_row, tile_id) VALUES (?, ?, ?, ?)""",
                                     (z, x, y, tile_id))
                             else:
-                                cur.execute("""replace into tiles (zoom_level, tile_column, tile_row, tile_data) values (?, ?, ?, ?);""",
+                                cur.execute("""REPLACE INTO tiles (zoom_level, tile_column, tile_row, tile_data) VALUES (?, ?, ?, ?)""",
                                     (z, x, y.split('.')[0], sqlite3.Binary(tile_data)))
+
 
                             count = count + 1
                             if (count % 100) == 0:
-                                for c in msg: sys.stdout.write(chr(8))
-                                logger.debug("%s tiles imported (%d tiles/sec)" % (count, count / (time.time() - start_time)))
+                                logger.debug("%s tiles imported (%d tiles/sec)" %
+                                    (count, count / (time.time() - start_time)))
+
 
     logger.info("%d tiles imported." % (count))
 

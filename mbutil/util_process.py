@@ -9,25 +9,36 @@ logger = logging.getLogger(__name__)
 def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     logger.info("Executing commands on database %s" % (mbtiles_file))
 
-    if kwargs['command_list'] == None or len(kwargs['command_list']) == 0:
+
+    if kwargs.get('command_list') == None or len(kwargs['command_list']) == 0:
         return
 
-    auto_commit = kwargs.get('auto_commit')
+    auto_commit = kwargs.get('auto_commit', False)
+    zoom        = kwargs.get('zoom', -1)
+    min_zoom    = kwargs.get('min_zoom', 0)
+    max_zoom    = kwargs.get('max_zoom', 255)
+    default_pool_size = kwargs.get('poolsize', -1)
+
+    if zoom >= 0:
+        min_zoom = max_zoom = zoom
+
 
     con = mbtiles_connect(mbtiles_file, auto_commit)
     cur = con.cursor()
     optimize_connection(cur)
 
-    existing_mbtiles_is_compacted = (cur.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)
+
+    existing_mbtiles_is_compacted = (con.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)
     if not existing_mbtiles_is_compacted:
         logger.info("The mbtiles file must be compacted, exiting...")
         return
 
     image_format = 'png'
     try:
-        image_format = cur.execute("select value from metadata where name='format';").fetchone()[0]
+        image_format = con.execute("select value from metadata where name='format';").fetchone()[0]
     except:
         pass
+
 
     count = 0
     duplicates = 0
@@ -35,21 +46,13 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     start_time = time.time()
     processed_tile_ids = set()
 
-    zoom     = kwargs.get('zoom')
-    min_zoom = kwargs.get('min_zoom')
-    max_zoom = kwargs.get('max_zoom')
-
-    if zoom >= 0:
-        min_zoom = max_zoom = zoom
-
-    total_tiles = (con.execute("""select count(distinct(tile_id)) from map where zoom_level>=? and zoom_level<=?""", (min_zoom, max_zoom)).fetchone()[0])
     max_rowid = (con.execute("select max(rowid) from map").fetchone()[0])
+    total_tiles = (con.execute("""select count(distinct(tile_id)) from map where zoom_level>=? and zoom_level<=?""",
+        (min_zoom, max_zoom)).fetchone()[0])
 
     logger.debug("%d tiles to process" % (total_tiles))
 
-    multiprocessing.log_to_stderr(logger.level)
 
-    default_pool_size = kwargs['poolsize']
     if default_pool_size < 1:
         default_pool_size = None
         logger.debug("Using default pool size")
@@ -57,12 +60,20 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
         logger.debug("Using pool size = %d" % (default_pool_size))
 
     pool = Pool(default_pool_size)
-    tiles_to_process = []
+    multiprocessing.log_to_stderr(logger.level)
+
 
     for i in range((max_rowid / chunk) + 1):
-        cur.execute("""select images.tile_id, images.tile_data, map.zoom_level, map.tile_column, map.tile_row from map, images where (map.rowid > ? and map.rowid <= ?) and (map.zoom_level>=? and map.zoom_level<=?) and (images.tile_id == map.tile_id)""",
+        cur.execute("""select images.tile_id, images.tile_data, map.zoom_level, map.tile_column, map.tile_row
+            from map, images
+            where (map.rowid > ? and map.rowid <= ?)
+            and (map.zoom_level>=? and map.zoom_level<=?)
+            and (images.tile_id == map.tile_id)""",
             ((i * chunk), ((i + 1) * chunk), min_zoom, max_zoom))
+
+        tiles_to_process = []
         rows = cur.fetchall()
+
         for r in rows:
             tile_id = r[0]
             tile_data = r[1]
@@ -82,14 +93,16 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
                 tmp_file.close()
 
                 tiles_to_process.append({
-                    'tile_id':tile_id,
-                    'filename':tmp_file_name,
-                    'format':image_format,
-                    'command_list':kwargs['command_list']
-                    })
+                    'tile_id' : tile_id,
+                    'filename' : tmp_file_name,
+                    'format' : image_format,
+                    'command_list' : kwargs.get('command_list', [])
+                })
 
-        # Execute commands
+
+        # Execute commands in parallel
         processed_tiles = pool.map(process_tile, tiles_to_process)
+
 
         for next_tile in processed_tiles:
             tile_id, tile_file_path = next_tile['tile_id'], next_tile['filename']
@@ -115,13 +128,15 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
                 # logger.debug("Tile %s done\n" % (tile_id, ))
 
+
             count = count + 1
             if (count % 100) == 0:
-                logger.debug("%s tiles finished (%.1f%%, %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                logger.debug("%s tiles finished (%.1f%%, %.1f tiles/sec)" %
+                    (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
 
-        tiles_to_process = []
 
-    logger.info("%s tiles finished, %d duplicates ignored (100.0%%, %.1f tiles/sec)" % (count, duplicates, count / (time.time() - start_time)))
+    logger.info("%s tiles finished, %d duplicates ignored (100.0%%, %.1f tiles/sec)" %
+        (count, duplicates, count / (time.time() - start_time)))
 
     pool.close()
     con.commit()

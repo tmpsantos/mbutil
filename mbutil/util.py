@@ -27,39 +27,40 @@ def optimize_connection(cur, exclusive_lock=True):
 
 def compaction_prepare(cur):
     cur.execute("""
-        CREATE TABLE if not exists images (
-        tile_data blob,
-        tile_id VARCHAR(256));""")
+        CREATE TABLE IF NOT EXISTS images (
+        tile_data BLOB,
+        tile_id VARCHAR(256))""")
     cur.execute("""
-        CREATE TABLE if not exists map (
-        zoom_level integer,
-        tile_column integer,
-        tile_row integer,
-        tile_id VARCHAR(256));""")
+        CREATE TABLE IF NOT EXISTS map (
+        zoom_level INTEGER,
+        tile_column INTEGER,
+        tile_row INTEGER,
+        tile_id VARCHAR(256))""")
     cur.execute("""
-        CREATE TABLE if not exists metadata (
-        name text, value text);""")
+        CREATE TABLE IF NOT EXISTS metadata (
+        name TEXT,
+        value TEXT)""")
     cur.execute("""
-        CREATE UNIQUE INDEX name ON metadata (name);""")
+        CREATE UNIQUE INDEX name ON metadata (name)""")
 
 
 def compaction_finalize(cur):
     try:
-        cur.execute("""drop table tiles;""")
+        cur.execute("""DROP TABLE tiles""")
     except sqlite3.OperationalError:
         pass
-    cur.execute("""create view tiles as
-        select map.zoom_level as zoom_level,
-        map.tile_column as tile_column,
-        map.tile_row as tile_row,
-        images.tile_data as tile_data FROM
-        map JOIN images on images.tile_id = map.tile_id;""")
     cur.execute("""
-          CREATE UNIQUE INDEX map_index on map
-            (zoom_level, tile_column, tile_row);""")
+        CREATE VIEW tiles AS
+        SELECT map.zoom_level AS zoom_level,
+        map.tile_column AS tile_column,
+        map.tile_row AS tile_row,
+        images.tile_data AS tile_data FROM
+        map JOIN images ON images.tile_id = map.tile_id""")
     cur.execute("""
-          CREATE UNIQUE INDEX images_id on images
-            (tile_id);""")
+        CREATE UNIQUE INDEX map_index ON map
+        (zoom_level, tile_column, tile_row)""")
+    cur.execute("""
+          CREATE UNIQUE INDEX images_id ON images (tile_id)""")
 
 
 def mbtiles_setup(cur):
@@ -70,11 +71,11 @@ def mbtiles_setup(cur):
 def optimize_database(cur, skip_analyze, skip_vacuum):
     if not skip_analyze:
         logger.info('analyzing db')
-        cur.execute("""ANALYZE;""")
+        cur.execute("""ANALYZE""")
 
     if not skip_vacuum:
         logger.info('cleaning db')
-        cur.execute("""VACUUM;""")
+        cur.execute("""VACUUM""")
 
 
 def optimize_database_file(mbtiles_file, skip_analyze, skip_vacuum):
@@ -87,7 +88,7 @@ def optimize_database_file(mbtiles_file, skip_analyze, skip_vacuum):
 
 
 def mbtiles_create(mbtiles_file, **kwargs):
-    logger.info("Creating empty MBTiles database %s" % mbtiles_file)
+    logger.info("Creating empty database %s" % (mbtiles_file))
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
     optimize_connection(cur)
