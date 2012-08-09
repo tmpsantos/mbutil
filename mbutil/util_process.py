@@ -42,7 +42,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
     count = 0
     duplicates = 0
-    chunk = 100
+    chunk = 1000
     start_time = time.time()
     processed_tile_ids = set()
 
@@ -51,6 +51,11 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
         (min_zoom, max_zoom)).fetchone()[0])
 
     logger.debug("%d tiles to process" % (total_tiles))
+
+
+    logger.debug("Creating an index for the tile_id column...")
+    con.execute("""CREATE INDEX IF NOT EXISTS tile_id_index ON map (tile_id)""")
+    logger.debug("...done")
 
 
     if default_pool_size < 1:
@@ -64,22 +69,25 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
 
     for i in range((max_rowid / chunk) + 1):
-        cur.execute("""select images.tile_id, images.tile_data, map.zoom_level, map.tile_column, map.tile_row
+        # logger.debug("Starting range %d-%d" % (i*chunk, (i+1)*chunk))
+        tiles = cur.execute("""select images.tile_id, images.tile_data, map.zoom_level, map.tile_column, map.tile_row
             from map, images
             where (map.rowid > ? and map.rowid <= ?)
             and (map.zoom_level>=? and map.zoom_level<=?)
             and (images.tile_id == map.tile_id)""",
             ((i * chunk), ((i + 1) * chunk), min_zoom, max_zoom))
 
-        tiles_to_process = []
-        rows = cur.fetchall()
 
-        for r in rows:
-            tile_id = r[0]
-            tile_data = r[1]
-            # tile_z = r[2]
-            # tile_x = r[3]
-            # tile_y = r[4]
+        tiles_to_process = []
+
+        t = tiles.fetchone()
+
+        while t:
+            tile_id = t[0]
+            tile_data = t[1]
+            # tile_z = t[2]
+            # tile_x = t[3]
+            # tile_y = t[4]
             # logging.debug("Working on tile (%d, %d, %d)" % (tile_z, tile_x, tile_y))
 
             if tile_id in processed_tile_ids:
@@ -99,11 +107,17 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
                     'command_list' : kwargs.get('command_list', [])
                 })
 
+            t = tiles.fetchone()
+
+
+        if len(tiles_to_process) == 0:
+            continue
 
         # Execute commands in parallel
+        # logger.debug("Starting multiprocessing...")
         processed_tiles = pool.map(process_tile, tiles_to_process)
 
-
+	# logger.debug("Starting reimport...")
         for next_tile in processed_tiles:
             tile_id, tile_file_path = next_tile['tile_id'], next_tile['filename']
 

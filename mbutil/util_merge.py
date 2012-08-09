@@ -165,6 +165,9 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
                         logger.debug("%s tiles merged (%.1f%% %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
 
 
+            if len(tiles_to_process) == 0:
+                continue
+
             # Execute commands
             processed_tiles = pool.map(process_tile, tiles_to_process)
 
