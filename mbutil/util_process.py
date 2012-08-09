@@ -132,12 +132,12 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
                 m.update(tile_data)
                 new_tile_id = m.hexdigest()
 
-                cur.execute("""insert or ignore into images (tile_id, tile_data) values (?, ?);""",
+                cur.execute("""insert or ignore into images (tile_id, tile_data) values (?, ?)""",
                     (new_tile_id, sqlite3.Binary(tile_data)))
-                cur.execute("""update map set tile_id=? where tile_id=?;""",
+                cur.execute("""update map set tile_id=? where tile_id=?""",
                     (new_tile_id, tile_id))
                 if tile_id != new_tile_id:
-                    cur.execute("""delete from images where tile_id=?;""",
+                    cur.execute("""delete from images where tile_id=?""",
                     [tile_id])
 
                 # logger.debug("Tile %s done\n" % (tile_id, ))

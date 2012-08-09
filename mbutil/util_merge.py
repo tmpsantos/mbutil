@@ -101,8 +101,6 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
     # merge and process (--merge --execute)
     if sending_mbtiles_is_compacted and kwargs['command_list']:
-        multiprocessing.log_to_stderr(logger.level)
-
         default_pool_size = kwargs.get('poolsize', -1)
         if default_pool_size < 1:
             default_pool_size = None
@@ -111,6 +109,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
             logger.debug("Using pool size = %d" % (default_pool_size))
 
         pool = Pool(default_pool_size)
+        multiprocessing.log_to_stderr(logger.level)
 
 
         tiles_to_process = []
