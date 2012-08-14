@@ -4,7 +4,7 @@ logger = logging.getLogger(__name__)
 
 
 def flip_y(zoom, y):
-    return (2**zoom-1) - y
+    return (2**int(zoom)-1) - int(y)
 
 
 def mbtiles_connect(mbtiles_file, auto_commit=False):
