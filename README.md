@@ -124,7 +124,7 @@ Python installation (requires easy_install)
 
 ## Metadata
 
-MBUtil imports and exports metadata as JSON, in the root of the tile directory, as a file named `metadata.json`.
+mb-util imports and exports metadata as JSON, in the root of the tile directory, as a file named `metadata.json`.
 
 ```javascript
 {

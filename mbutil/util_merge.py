@@ -49,17 +49,28 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     original_format = new_format = None
     try:
         original_format = con1.execute("SELECT value FROM metadata WHERE name='format'").fetchone()[0]
+    except:
+        pass
+
+    try:
         new_format = con2.execute("SELECT value FROM metadata WHERE name='format'").fetchone()[0]
     except:
         pass
 
-    if original_format != None and new_format != None and new_format != original_format:
+    if new_format == None:
+        logger.info("No image format found in the sending database, assuming 'png'")
+        new_format = "png"
+
+    if original_format != None and new_format != original_format:
         sys.stderr.write('The files to merge must use the same image format (png or jpg)\n')
         sys.exit(1)
 
     if original_format == None and new_format != None:
         con1.execute("""insert or ignore into metadata (name, value) values ("format", ?)""", [new_format])
         con1.commit()
+
+    if new_format == None:
+        new_format = original_format
 
 
     existing_tiles = {}
