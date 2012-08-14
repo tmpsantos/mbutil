@@ -1,6 +1,6 @@
 import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile, multiprocessing
 
-from util import mbtiles_connect, mbtiles_setup, optimize_connection, optimize_database, process_tile
+from util import mbtiles_connect, mbtiles_setup, compaction_update, optimize_connection, optimize_database, process_tile
 from multiprocessing import Pool
 
 logger = logging.getLogger(__name__)
@@ -32,6 +32,9 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     if not existing_mbtiles_is_compacted:
         logger.info("The mbtiles file must be compacted, exiting...")
         return
+
+    if existing_mbtiles_is_compacted:
+        compaction_update(cur)
 
     image_format = 'png'
     try:
@@ -134,8 +137,8 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
                 cur.execute("""insert or ignore into images (tile_id, tile_data) values (?, ?)""",
                     (new_tile_id, sqlite3.Binary(tile_data)))
-                cur.execute("""update map set tile_id=? where tile_id=?""",
-                    (new_tile_id, tile_id))
+                cur.execute("""update map set tile_id=?,updated_at=? where tile_id=?""",
+                    (new_tile_id, int(time.time()), tile_id))
                 if tile_id != new_tile_id:
                     cur.execute("""delete from images where tile_id=?""",
                     [tile_id])

@@ -1,6 +1,6 @@
 import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile, multiprocessing
 
-from util import mbtiles_connect, mbtiles_setup, optimize_connection, optimize_database, execute_commands_on_tile, process_tile, flip_y
+from util import mbtiles_connect, mbtiles_setup, compaction_update, optimize_connection, optimize_database, execute_commands_on_tile, process_tile, flip_y
 from util_check import check_mbtiles
 from multiprocessing import Pool
 
@@ -43,6 +43,9 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         con2.close()
         sys.stderr.write('To merge two mbtiles databases, the receiver must already be compacted\n')
         sys.exit(1)
+
+    if receiving_mbtiles_is_compacted:
+        compaction_update(cur1)
 
 
     # Check that the old and new image formats are the same
@@ -167,8 +170,8 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
                         'z':z
                     })
                 else:
-                    cur1.execute("""REPLACE INTO map (zoom_level, tile_column, tile_row, tile_id) VALUES (?, ?, ?, ?)""",
-                        (z, x, y, new_tile_id))
+                    cur1.execute("""REPLACE INTO map (zoom_level, tile_column, tile_row, tile_id, updated_at) VALUES (?, ?, ?, ?, ?)""",
+                        (z, x, y, new_tile_id, int(time.time())))
 
                     count = count + 1
                     if (count % 100) == 0:
@@ -200,8 +203,8 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
                     cur1.execute("""REPLACE INTO images (tile_id, tile_data) VALUES (?, ?)""",
                         (new_tile_id, sqlite3.Binary(tile_data)))
 
-                    cur1.execute("""REPLACE INTO map (zoom_level, tile_column, tile_row, tile_id) VALUES (?, ?, ?, ?)""",
-                        (z, x, y, new_tile_id))
+                    cur1.execute("""REPLACE INTO map (zoom_level, tile_column, tile_row, tile_id, updated_at) VALUES (?, ?, ?, ?, ?)""",
+                        (z, x, y, new_tile_id, int(time.time())))
 
                 count = count + 1
                 if (count % 100) == 0:
@@ -253,8 +256,8 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
                     (new_tile_id, sqlite3.Binary(tile_data)))
 
 
-            cur1.execute("""REPLACE INTO map (zoom_level, tile_column, tile_row, tile_id) VALUES (?, ?, ?, ?)""",
-                (z, x, y, new_tile_id))
+            cur1.execute("""REPLACE INTO map (zoom_level, tile_column, tile_row, tile_id, updated_at) VALUES (?, ?, ?, ?, ?)""",
+                (z, x, y, new_tile_id, int(time.time())))
 
             count = count + 1
             if (count % 100) == 0:
@@ -299,8 +302,8 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
                 cur1.execute("""REPLACE INTO images (tile_id, tile_data) VALUES (?, ?)""",
                     (tile_id, sqlite3.Binary(tile_data)))
 
-            cur1.execute("""REPLACE INTO map (zoom_level, tile_column, tile_row, tile_id) VALUES (?, ?, ?, ?)""",
-                (z, x, y, tile_id))
+            cur1.execute("""REPLACE INTO map (zoom_level, tile_column, tile_row, tile_id, updated_at) VALUES (?, ?, ?, ?, ?)""",
+                (z, x, y, tile_id, int(time.time())))
 
             known_tile_ids.add(tile_id)
 

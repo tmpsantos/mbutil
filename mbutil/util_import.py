@@ -1,6 +1,6 @@
 import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile
 
-from util import mbtiles_connect, mbtiles_setup, optimize_connection, optimize_database, execute_commands_on_tile, flip_y
+from util import mbtiles_connect, mbtiles_setup, optimize_connection, optimize_database, execute_commands_on_tile, flip_y, compaction_update
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,8 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
     if import_into_existing_mbtiles:
         existing_mbtiles_is_compacted = (con.execute("SELECT count(name) FROM sqlite_master WHERE type='table' AND name='images'").fetchone()[0] > 0)
+        if existing_mbtiles_is_compacted:
+            compaction_update(cur)
     else:
         mbtiles_setup(cur)
 
@@ -127,8 +129,8 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                                 cur.execute("""INSERT OR IGNORE INTO images (tile_id, tile_data) VALUES (?, ?)""",
                                     (tile_id, sqlite3.Binary(tile_data)))
 
-                                cur.execute("""REPLACE INTO map (zoom_level, tile_column, tile_row, tile_id) VALUES (?, ?, ?, ?)""",
-                                    (z, x, y, tile_id))
+                                cur.execute("""REPLACE INTO map (zoom_level, tile_column, tile_row, tile_id, updated_at) VALUES (?, ?, ?, ?, ?)""",
+                                    (z, x, y, tile_id, int(time.time())))
                             else:
                                 cur.execute("""REPLACE INTO tiles (zoom_level, tile_column, tile_row, tile_data) VALUES (?, ?, ?, ?)""",
                                     (z, x, y.split('.')[0], sqlite3.Binary(tile_data)))

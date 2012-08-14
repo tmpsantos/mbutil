@@ -59,8 +59,8 @@ def compact_mbtiles(mbtiles_file):
             else:
                 unique = unique + 1
 
-            cur.execute("""REPLACE INTO map (zoom_level, tile_column, tile_row, tile_id) VALUES (?, ?, ?, ?)""",
-                (z, x, y, tile_id))
+            cur.execute("""REPLACE INTO map (zoom_level, tile_column, tile_row, tile_id, updated_at) VALUES (?, ?, ?, ?, ?)""",
+                (z, x, y, tile_id, int(time.time())))
 
 
             count = count + 1

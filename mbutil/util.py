@@ -35,7 +35,8 @@ def compaction_prepare(cur):
         zoom_level INTEGER,
         tile_column INTEGER,
         tile_row INTEGER,
-        tile_id VARCHAR(256))""")
+        tile_id VARCHAR(256),
+        updated_at INTEGER)""")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS metadata (
         name TEXT,
@@ -61,6 +62,15 @@ def compaction_finalize(cur):
         (zoom_level, tile_column, tile_row)""")
     cur.execute("""
           CREATE UNIQUE INDEX images_id ON images (tile_id)""")
+
+
+def compaction_update(cur):
+    try:
+        cur.execute("""
+            ALTER TABLE map ADD COLUMN
+            updated_at INTEGER""")
+    except sqlite3.OperationalError:
+        pass
 
 
 def mbtiles_setup(cur):
