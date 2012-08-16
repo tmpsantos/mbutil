@@ -123,11 +123,11 @@ def mbtiles_create(mbtiles_file, **kwargs):
     con.close()
 
 
-def execute_commands_on_tile(command_list, image_format, tile_data):
+def execute_commands_on_tile(command_list, image_format, tile_data, tmp_dir=None):
     if command_list == None or tile_data == None:
         return tile_data
 
-    tmp_file_fd, tmp_file_name = tempfile.mkstemp(suffix=".%s" % (image_format), prefix="tile_")
+    tmp_file_fd, tmp_file_name = tempfile.mkstemp(suffix=".%s" % (image_format), prefix="tile_", dir=tmp_dir)
     tmp_file = os.fdopen(tmp_file_fd, "w")
     tmp_file.write(tile_data)
     tmp_file.close()

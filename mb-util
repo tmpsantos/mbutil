@@ -125,6 +125,10 @@ if __name__ == '__main__':
         type="int", default=-1,
         help="""Pool size for processing tiles with --process/--merge. Default is to use a pool size equal to the number of cpus/cores.""")
 
+    group.add_option('--tmp-dir',
+        dest='tmp_dir', type="string", default=None,
+        help='''Temporary directory to use for --execute.''')
+
     group.add_option("--vacuum",
         action="store_false", dest="skip_vacuum", default=True,
         help='''VACUUM the mbtiles database after --import/--merge/--process/--compact.''')
@@ -181,7 +185,7 @@ if __name__ == '__main__':
             if not os.path.isfile(args[0]):
                 sys.stderr.write('The mbtiles database to compact must exist.\n')
                 sys.exit(1)
-            compact_mbtiles(args[0])
+            compact_mbtiles(args[0], **options.__dict__)
             optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum)
             sys.exit(0)
 

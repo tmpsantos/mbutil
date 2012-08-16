@@ -17,7 +17,11 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     zoom        = kwargs.get('zoom', -1)
     min_zoom    = kwargs.get('min_zoom', 0)
     max_zoom    = kwargs.get('max_zoom', 18)
+    tmp_dir     = kwargs.get('tmp_dir', None)
     default_pool_size = kwargs.get('poolsize', -1)
+
+    if tmp_dir and not os.path.isdir(tmp_dir):
+        os.mkdir(tmp_dir)
 
     if zoom >= 0:
         min_zoom = max_zoom = zoom
@@ -98,7 +102,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
             else:
                 processed_tile_ids.add(tile_id)
 
-                tmp_file_fd, tmp_file_name = tempfile.mkstemp(suffix=".%s" % (image_format), prefix="tile_")
+                tmp_file_fd, tmp_file_name = tempfile.mkstemp(suffix=".%s" % (image_format), prefix="tile_", dir=tmp_dir)
                 tmp_file = os.fdopen(tmp_file_fd, "w")
                 tmp_file.write(tile_data)
                 tmp_file.close()
