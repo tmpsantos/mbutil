@@ -15,6 +15,10 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     zoom     = kwargs.get('zoom', -1)
     min_zoom = kwargs.get('min_zoom', 0)
     max_zoom = kwargs.get('max_zoom', 18)
+    tmp_dir  = kwargs.get('tmp_dir', None)
+
+    if tmp_dir and not os.path.isdir(tmp_dir):
+        os.mkdir(tmp_dir)
 
     if zoom >= 0:
         min_zoom = max_zoom = zoom
@@ -54,7 +58,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
 
         # Execute commands
         if kwargs.get('command_list'):
-            tile_data = execute_commands_on_tile(kwargs['command_list'], image_format, tile_data)
+            tile_data = execute_commands_on_tile(kwargs['command_list'], image_format, tile_data, tmp_dir)
 
         if kwargs.get('flip_y', False) == True:
           y = flip_y(z, y)

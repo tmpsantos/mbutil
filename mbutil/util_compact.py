@@ -5,8 +5,13 @@ logger = logging.getLogger(__name__)
 from util import mbtiles_connect, optimize_connection, optimize_database, execute_commands_on_tile, compaction_prepare, compaction_finalize
 
 
-def compact_mbtiles(mbtiles_file):
+def compact_mbtiles(mbtiles_file, **kwargs):
     logger.info("Compacting database %s" % (mbtiles_file))
+
+
+    tmp_dir  = kwargs.get('tmp_dir', None)
+    if tmp_dir and not os.path.isdir(tmp_dir):
+        os.mkdir(tmp_dir)
 
 
     con = mbtiles_connect(mbtiles_file)
@@ -45,7 +50,7 @@ def compact_mbtiles(mbtiles_file):
 
             # Execute commands
             if kwargs.get('command_list'):
-                tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data)
+                tile_data = execute_commands_on_tile(kwargs['command_list'], "png", tile_data, tmp_dir)
 
             m = hashlib.md5()
             m.update(tile_data)

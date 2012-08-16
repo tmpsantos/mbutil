@@ -14,12 +14,17 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     zoom     = kwargs.get('zoom', -1)
     min_zoom = kwargs.get('min_zoom', 0)
     max_zoom = kwargs.get('max_zoom', 18)
+    tmp_dir  = kwargs.get('tmp_dir', None)
     no_overwrite = kwargs.get('no_overwrite', False)
     auto_commit  = kwargs.get('auto_commit', False)
     delete_after_export = kwargs.get('delete_after_export', False)
 
+    if tmp_dir and not os.path.isdir(tmp_dir):
+        os.mkdir(tmp_dir)
+
     if zoom >= 0:
         min_zoom = max_zoom = zoom
+
 
     check_before_merge = kwargs.get('check_before_merge', False)
     if check_before_merge and not check_mbtiles(mbtiles_file2, **kwargs):
@@ -155,7 +160,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
                 new_tile_id = known_tile_ids.get(tile_id)
                 if new_tile_id is None:
-                    tmp_file_fd, tmp_file_name = tempfile.mkstemp(suffix=".%s" % (new_format), prefix="tile_")
+                    tmp_file_fd, tmp_file_name = tempfile.mkstemp(suffix=".%s" % (new_format), prefix="tile_", dir=tmp_dir)
                     tmp_file = os.fdopen(tmp_file_fd, "w")
                     tmp_file.write(tile_data)
                     tmp_file.close()
@@ -245,7 +250,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
             if new_tile_id is None:
                 # Execute commands
                 if kwargs.get('command_list'):
-                    tile_data = execute_commands_on_tile(kwargs['command_list'], new_format, tile_data)
+                    tile_data = execute_commands_on_tile(kwargs['command_list'], new_format, tile_data, tmp_dir)
 
                 m = hashlib.md5()
                 m.update(tile_data)
@@ -292,7 +297,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
             # Execute commands
             if kwargs.get('command_list'):
-                tile_data = execute_commands_on_tile(kwargs['command_list'], new_format, tile_data)
+                tile_data = execute_commands_on_tile(kwargs['command_list'], new_format, tile_data, tmp_dir)
 
             m = hashlib.md5()
             m.update(tile_data)
