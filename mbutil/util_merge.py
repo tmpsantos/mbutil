@@ -13,7 +13,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
     zoom     = kwargs.get('zoom', -1)
     min_zoom = kwargs.get('min_zoom', 0)
-    max_zoom = kwargs.get('max_zoom', 255)
+    max_zoom = kwargs.get('max_zoom', 18)
     no_overwrite = kwargs.get('no_overwrite', False)
     auto_commit  = kwargs.get('auto_commit', False)
     delete_after_export = kwargs.get('delete_after_export', False)

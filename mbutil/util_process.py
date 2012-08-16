@@ -16,7 +16,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     auto_commit = kwargs.get('auto_commit', False)
     zoom        = kwargs.get('zoom', -1)
     min_zoom    = kwargs.get('min_zoom', 0)
-    max_zoom    = kwargs.get('max_zoom', 255)
+    max_zoom    = kwargs.get('max_zoom', 18)
     default_pool_size = kwargs.get('poolsize', -1)
 
     if zoom >= 0:

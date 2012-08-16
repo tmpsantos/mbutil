@@ -72,6 +72,8 @@ Python installation (requires easy_install)
         --check             Check the database for missing tiles.
         --compact           Eliminate duplicate images to reduce mbtiles filesize.
         --create            Create an empty mbtiles database.
+        --convert=CONVERT   Convert tile coordinates 'y/x/z' to bounding box
+                            'left,bottom,right,top' or vice versa.
 
     Options:
         --execute=COMMAND   Commands to execute for each tile image. %s will be
@@ -79,14 +81,14 @@ Python installation (requires easy_install)
                             repeated several times and can be used together with
                             --import/--export/--merge/--compact/--process.
         --flip-y            Flip the y tile coordinate during
-                            --export/--import/--merge.
+                            --export/--import/--merge/--convert.
         --min-zoom=MIN_ZOOM
                             Minimum zoom level for
-                            --export/--import/--merge/--process/--check.
+                            --export/--import/--merge/--process/--check/--convert.
         --max-zoom=MAX_ZOOM
                             Maximum zoom level for
-                            --export/--import/--merge/--process/--check.
-        --zoom=ZOOM         Zoom level for --export/--import/--process/--check.
+                            --export/--import/--merge/--process/--check/--convert.
+        --zoom=ZOOM         Zoom level for --export/--import/--process/--check/--convert.
                             (Overrides --min-zoom and --max-zoom)
         --no-overwrite      don't overwrite existing tiles during
                             --merge/--import/--export.

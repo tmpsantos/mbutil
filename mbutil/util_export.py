@@ -14,7 +14,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
 
     zoom     = kwargs.get('zoom', -1)
     min_zoom = kwargs.get('min_zoom', 0)
-    max_zoom = kwargs.get('max_zoom', 255)
+    max_zoom = kwargs.get('max_zoom', 18)
 
     if zoom >= 0:
         min_zoom = max_zoom = zoom

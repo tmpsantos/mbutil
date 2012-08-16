@@ -1,10 +1,26 @@
-import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile
+import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile, math
 
 logger = logging.getLogger(__name__)
 
 
 def flip_y(zoom, y):
     return (2**int(zoom)-1) - int(y)
+
+
+def coordinate_to_tile(longitude, latitude, zoom):
+  latitude_rad = math.radians(latitude)
+  n = 2.0 ** zoom
+  tileX = int((longitude + 180.0) / 360.0 * n)
+  tileY = int((1.0 - math.log(math.tan(latitude_rad) + (1 / math.cos(latitude_rad))) / math.pi) / 2.0 * n)
+  return (tileX, tileY)
+
+
+def tile_to_coordinate(tileX, tileY, zoom):
+  n = 2.0 ** zoom
+  longitude = (tileX + 0.5) / n * 360.0 - 180.0
+  latitude_rad = math.atan(math.sinh(math.pi * (1 - 2 * (tileY + 0.5) / n)))
+  latitude = math.degrees(latitude_rad)
+  return (longitude, latitude)
 
 
 def mbtiles_connect(mbtiles_file, auto_commit=False):
