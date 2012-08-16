@@ -152,11 +152,11 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
             count = count + 1
             if (count % 100) == 0:
-                logger.debug("%s tiles finished (%.1f%%, %.1f tiles/sec)" %
+                logger.debug("%s tiles finished (%.1f%% @ %.1f tiles/sec)" %
                     (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
 
 
-    logger.info("%s tiles finished, %d duplicates ignored (100.0%%, %.1f tiles/sec)" %
+    logger.info("%s tiles finished, %d duplicates ignored (100.0%% @ %.1f tiles/sec)" %
         (count, duplicates, count / (time.time() - start_time)))
 
     pool.close()

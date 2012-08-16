@@ -180,7 +180,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
                     count = count + 1
                     if (count % 100) == 0:
-                        logger.debug("%s tiles merged (%.1f%% %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                        logger.debug("%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
 
 
             if len(tiles_to_process) == 0:
@@ -213,7 +213,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
                 count = count + 1
                 if (count % 100) == 0:
-                    logger.debug("%s tiles merged (%.1f%% %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                    logger.debug("%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
 
 
             tiles_to_process = []
@@ -266,7 +266,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
             count = count + 1
             if (count % 100) == 0:
-                logger.debug("%s tiles merged (%.1f%% %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                logger.debug("%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
 
             t = tiles.fetchone()
 
@@ -314,12 +314,12 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
             count = count + 1
             if (count % 100) == 0:
-                logger.debug("%s tiles merged (%.1f%%, %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                logger.debug("%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
 
             t = tiles.fetchone()
 
 
-    logger.info("%s tiles merged (100.0%%, %.1f tiles/sec)" % (count, count / (time.time() - start_time)))
+    logger.info("%s tiles merged (100.0%% @ %.1f tiles/sec)" % (count, count / (time.time() - start_time)))
 
 
     if delete_after_export:

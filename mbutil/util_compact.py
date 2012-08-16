@@ -70,11 +70,11 @@ def compact_mbtiles(mbtiles_file, **kwargs):
 
             count = count + 1
             if (count % 100) == 0:
-                logger.debug("%s tiles finished, %d unique, %d duplicates (%.1f%%, %.1f tiles/sec)" %
+                logger.debug("%s tiles finished, %d unique, %d duplicates (%.1f%% @ %.1f tiles/sec)" %
                     (count, unique, overlapping, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
 
 
-    logger.info("%s tiles finished, %d unique, %d duplicates (100.0%%, %.1f tiles/sec)" % (count, unique, overlapping, count / (time.time() - start_time)))
+    logger.info("%s tiles finished, %d unique, %d duplicates (100.0%% @ %.1f tiles/sec)" % (count, unique, overlapping, count / (time.time() - start_time)))
 
     compaction_finalize(cur)
     con.commit()
