@@ -14,6 +14,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
         return
 
     auto_commit = kwargs.get('auto_commit', False)
+    wal_journal = kwargs.get('wal_journal', False)
     zoom        = kwargs.get('zoom', -1)
     min_zoom    = kwargs.get('min_zoom', 0)
     max_zoom    = kwargs.get('max_zoom', 18)
@@ -29,7 +30,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
     con = mbtiles_connect(mbtiles_file, auto_commit)
     cur = con.cursor()
-    optimize_connection(cur)
+    optimize_connection(cur, wal_journal)
 
 
     existing_mbtiles_is_compacted = (con.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)

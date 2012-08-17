@@ -11,6 +11,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
 
     delete_after_export = kwargs.get('delete_after_export', False)
     no_overwrite        = kwargs.get('no_overwrite', False)
+    wal_journal         = kwargs.get('wal_journal', False)
 
     zoom     = kwargs.get('zoom', -1)
     min_zoom = kwargs.get('min_zoom', 0)
@@ -26,7 +27,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
 
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
-    optimize_connection(cur)
+    optimize_connection(cur, wal_journal)
 
 
     if not os.path.isdir(directory_path):

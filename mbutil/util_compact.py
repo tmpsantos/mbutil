@@ -9,6 +9,7 @@ def compact_mbtiles(mbtiles_file, **kwargs):
     logger.info("Compacting database %s" % (mbtiles_file))
 
 
+    wal_journal = kwargs.get('wal_journal', False)
     tmp_dir  = kwargs.get('tmp_dir', None)
     if tmp_dir and not os.path.isdir(tmp_dir):
         os.mkdir(tmp_dir)
@@ -16,7 +17,7 @@ def compact_mbtiles(mbtiles_file, **kwargs):
 
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
-    optimize_connection(cur)
+    optimize_connection(cur, wal_journal)
 
     existing_mbtiles_is_compacted = (con.execute("SELECT count(name) FROM sqlite_master WHERE type='table' AND name='images'").fetchone()[0] > 0)
     if existing_mbtiles_is_compacted:

@@ -113,6 +113,10 @@ if __name__ == '__main__':
         action="store_true", dest="auto_commit", default=False,
         help='''Enable auto commit for --merge/--import/--process.''')
 
+    group.add_option("--use-wal-journal",
+        action="store_true", dest="wal_journal", default=False,
+        help='''Use journal_mode=WAL for the databases (default is DELETE).''')
+
     group.add_option("--check-before-merge",
         action="store_true", dest="check_before_merge", default=False,
         help='''Runs some basic checks (like --check) on mbtiles before merging them.''')
