@@ -9,21 +9,21 @@ def convert_tile_to_bbox(zoom, x, y, flip_tile_y):
     if flip_tile_y:
         y = flip_y(zoom, y)
 
-    left, bottom = tile_to_coordinate(x - 0.5, y + 0.5, zoom)
-    right, top   = tile_to_coordinate(x + 0.5, y - 0.5, zoom)
+    min_x, min_y = tile_to_coordinate(x - 0.5, y + 0.5, zoom)
+    max_x, max_y = tile_to_coordinate(x + 0.5, y - 0.5, zoom)
 
-    sys.stdout.write("%f,%f,%f,%f\n" % (left, bottom, right, top))
+    sys.stdout.write("%f,%f,%f,%f\n" % (min_x, min_y, max_x, max_y))
 
 
 def tiles_for_bbox(left, bottom, right, top, zoom, flip_tile_y):
-    bottom_tile_x, bottom_tile_y = coordinate_to_tile(left, bottom, zoom)
-    top_tile_x, top_tile_y       = coordinate_to_tile(right, top, zoom)
+    min_x, min_y = coordinate_to_tile(left, bottom, zoom)
+    max_x, max_y = coordinate_to_tile(right, top, zoom)
 
-    if bottom_tile_y > top_tile_y:
-        bottom_tile_y, top_tile_y = top_tile_y, bottom_tile_y
+    if min_y > max_y:
+        min_y, max_y = max_y, min_y
 
-    for x in range(bottom_tile_x, top_tile_x+1):
-        for y in range(bottom_tile_y, top_tile_y+1):
+    for x in range(min_x, max_x+1):
+        for y in range(min_y, max_y+1):
             if flip_tile_y:
                 y = flip_y(zoom, y)
             sys.stdout.write("%d/%d/%d\n" % (zoom, x, y))
