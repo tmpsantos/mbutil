@@ -52,6 +52,10 @@ Python installation (requires easy_install)
     Compact a mbtiles file by eliminating duplicate images:
     $ mb-util --compact world.mbtiles
 
+    Convert tile coordinates and bounding boxes:
+    $ mb-util --convert="13/4328/2861"
+    $ mb-util --convert="10.195312,47.546872,10.239258,47.576526" --min-zoom=12 --max-zoom=13
+
 
     Options:
         -h, --help            show this help message and exit
@@ -93,6 +97,8 @@ Python installation (requires easy_install)
         --no-overwrite      don't overwrite existing tiles during
                             --merge/--import/--export.
         --auto-commit       Enable auto commit for --merge/--import/--process.
+        --use-wal-journal   Use journal_mode=WAL for the databases (default is
+                            DELETE).
         --check-before-merge
                             Runs some basic checks (like --check) on mbtiles
                             before merging them.
@@ -106,6 +112,7 @@ Python installation (requires easy_install)
                             Pool size for processing tiles with --process/--merge.
                             Default is to use a pool size equal to the number of
                             cpus/cores.
+        --tmp-dir=TMP_DIR   Temporary directory to use for --execute.
         --vacuum            VACUUM the mbtiles database after
                             --import/--merge/--process/--compact.
         --analyze           ANALYZE the mbtiles database after

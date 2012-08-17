@@ -39,6 +39,10 @@ if __name__ == '__main__':
 
     Compact a mbtiles file by eliminating duplicate images:
     $ mb-util --compact world.mbtiles
+
+    Convert tile coordinates and bounding boxes:
+    $ mb-util --convert="13/4328/2861"
+    $ mb-util --convert="10.195312,47.546872,10.239258,47.576526" --min-zoom=12 --max-zoom=13
     """)
 
     group = OptionGroup(parser, "Commands", "These are the commands to use on mbtiles databases")
