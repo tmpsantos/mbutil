@@ -186,7 +186,7 @@ if __name__ == '__main__':
                 sys.stderr.write('The mbtiles database to process must exist.\n')
                 sys.exit(1)
             execute_commands_on_mbtiles(args[0], **options.__dict__)
-            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum)
+            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.wal_journal)
             sys.exit(0)
 
         if options.compact:
@@ -194,7 +194,7 @@ if __name__ == '__main__':
                 sys.stderr.write('The mbtiles database to compact must exist.\n')
                 sys.exit(1)
             compact_mbtiles(args[0], **options.__dict__)
-            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum)
+            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.wal_journal)
             sys.exit(0)
 
         # Create an empty mbtiles db?
@@ -222,7 +222,7 @@ if __name__ == '__main__':
                 continue
             merge_mbtiles(receiving_mbtiles, other_mbtiles, **options.__dict__)
 
-        optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum)
+        optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.wal_journal)
         sys.exit(0)
 
     # export from mbtiles to disk
@@ -243,5 +243,5 @@ if __name__ == '__main__':
 
         directory_path, mbtiles_file = args
         disk_to_mbtiles(directory_path, mbtiles_file, **options.__dict__)
-        optimize_database_file(mbtiles_file, options.skip_analyze, options.skip_vacuum)
+        optimize_database_file(mbtiles_file, options.skip_analyze, options.skip_vacuum, options.wal_journal)
         sys.exit(0)

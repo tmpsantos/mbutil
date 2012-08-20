@@ -109,10 +109,10 @@ def optimize_database(cur, skip_analyze, skip_vacuum):
         cur.execute("""VACUUM""")
 
 
-def optimize_database_file(mbtiles_file, skip_analyze, skip_vacuum):
+def optimize_database_file(mbtiles_file, skip_analyze, skip_vacuum, wal_journal=False):
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
-    optimize_connection(cur)
+    optimize_connection(cur, wal_journal)
     optimize_database(cur, skip_analyze, skip_vacuum)
     con.commit()
     con.close()
