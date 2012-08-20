@@ -37,7 +37,6 @@ def mbtiles_connect(mbtiles_file, auto_commit=False):
 
 def optimize_connection(cur, wal_journal=False, exclusive_lock=True):
     if wal_journal:
-        logger.debug("Using journal_mode=WAL")
         cur.execute("""PRAGMA journal_mode=WAL""")
     else:
         cur.execute("""PRAGMA journal_mode=DELETE""")

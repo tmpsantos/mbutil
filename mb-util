@@ -166,10 +166,25 @@ if __name__ == '__main__':
         parser.print_help()
         sys.exit(1)
 
+    logger = logging.getLogger(__name__)
+
     if options.quiet:
-        logging.getLogger().setLevel(logging.ERROR)
+        logger.setLevel(logging.ERROR)
     elif options.debug:
-        logging.getLogger().setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
+
+    if options.wal_journal:
+        logger.debug("Using journal_mode=WAL")
+    else:
+        logger.debug("Using journal_mode=DELETE")
+
+    if options.auto_commit:
+        logger.debug("Using auto commit (isolation_level = None)")
+    if options.flip_y:
+        logger.debug("Flipping the y coordinate")
+
+    if options.tmp_dir:
+        logger.debug("Using tmp dir: %s" % (options.tmp_dir, ))
 
     if len(args) == 1:
         # Check the mbtiles db?
