@@ -20,6 +20,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     max_zoom    = kwargs.get('max_zoom', 18)
     tmp_dir     = kwargs.get('tmp_dir', None)
     default_pool_size = kwargs.get('poolsize', -1)
+    synchronous_off   = kwargs.get('synchronous_off', False)
 
     if tmp_dir and not os.path.isdir(tmp_dir):
         os.mkdir(tmp_dir)
@@ -30,7 +31,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
     con = mbtiles_connect(mbtiles_file, auto_commit)
     cur = con.cursor()
-    optimize_connection(cur, wal_journal)
+    optimize_connection(cur, wal_journal, synchronous_off)
 
 
     existing_mbtiles_is_compacted = (con.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)

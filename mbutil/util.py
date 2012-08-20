@@ -35,17 +35,20 @@ def mbtiles_connect(mbtiles_file, auto_commit=False):
         sys.exit(1)
 
 
-def optimize_connection(cur, wal_journal=False, exclusive_lock=True):
+def optimize_connection(cur, wal_journal=False, synchronous_off=False, exclusive_lock=True):
     cur.execute("PRAGMA cache_size = 20000")
     cur.execute("PRAGMA temp_store = memory")
 
     if wal_journal:
-        cur.execute("""PRAGMA journal_mode=WAL""")
+        cur.execute("PRAGMA journal_mode = WAL")
     else:
-        cur.execute("""PRAGMA journal_mode=DELETE""")
+        cur.execute("PRAGMA journal_mode = DELETE")
 
     if exclusive_lock:
-        cur.execute("""PRAGMA locking_mode=EXCLUSIVE""")
+        cur.execute("PRAGMA locking_mode = EXCLUSIVE")
+
+    if synchronous_off:
+        cur.execute("PRAGMA synchronous = OFF")
 
 
 def compaction_prepare(cur):

@@ -97,6 +97,8 @@ Python installation (requires easy_install)
         --no-overwrite      don't overwrite existing tiles during
                             --merge/--import/--export.
         --auto-commit       Enable auto commit for --merge/--import/--process.
+        --synchronous-off   DANGEROUS!!! Set synchronous=OFF for the database
+                            connections.
         --use-wal-journal   Use journal_mode=WAL for the databases (default is
                             DELETE).
         --check-before-merge
