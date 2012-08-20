@@ -36,7 +36,8 @@ def mbtiles_connect(mbtiles_file, auto_commit=False):
 
 
 def optimize_connection(cur, wal_journal=False, exclusive_lock=True):
-    cur.execute("PRAGMA cache_size = 10000")
+    cur.execute("PRAGMA cache_size = 20000")
+    cur.execute("PRAGMA temp_store = memory")
 
     if wal_journal:
         cur.execute("""PRAGMA journal_mode=WAL""")
