@@ -36,6 +36,8 @@ def mbtiles_connect(mbtiles_file, auto_commit=False):
 
 
 def optimize_connection(cur, wal_journal=False, exclusive_lock=True):
+    cur.execute("PRAGMA cache_size = 10000")
+
     if wal_journal:
         cur.execute("""PRAGMA journal_mode=WAL""")
     else:
@@ -46,6 +48,8 @@ def optimize_connection(cur, wal_journal=False, exclusive_lock=True):
 
 
 def compaction_prepare(cur):
+    cur.execute("PRAGMA page_size = 4096")
+
     cur.execute("""
         CREATE TABLE IF NOT EXISTS images (
         tile_data BLOB,
