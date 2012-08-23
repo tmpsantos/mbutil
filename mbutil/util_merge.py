@@ -111,7 +111,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
     count = 0
     start_time = time.time()
-    chunk = 100
+    chunk = 1000
 
     total_tiles = (con2.execute("""SELECT count(*) FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
         (min_zoom, max_zoom)).fetchone()[0])
