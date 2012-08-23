@@ -97,6 +97,8 @@ Python installation (requires easy_install)
         --no-overwrite      don't overwrite existing tiles during
                             --merge/--import/--export.
         --auto-commit       Enable auto commit for --merge/--import/--process.
+        --synchronous-off   DANGEROUS!!! Set synchronous=OFF for the database
+                            connections.
         --use-wal-journal   Use journal_mode=WAL for the databases (default is
                             DELETE).
         --check-before-merge
@@ -124,7 +126,11 @@ Python installation (requires easy_install)
 
 ## Special considerations
 
-* All mbtiles databases must be on the same host as mb-util, due to the WAL locking mode used for SQLite.
+* All mbtiles databases must be on the same host as the mb-util binary if you want to use the WAL locking mode.
+* Using --synchronous-off is dangerous since your database might get corrupted.
+* Use --tmp-dir=/dev/shm on Ubuntu to place temporary files on a ram disk.
+* Use --use-wal-journal if you want to udpate a database which is at the same time used for reading.
+* --auto-commit will disable transactions and therefore most probably slow down any insert operations to the database.
 
 ## Requirements
 

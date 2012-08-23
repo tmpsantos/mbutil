@@ -117,6 +117,10 @@ if __name__ == '__main__':
         action="store_true", dest="auto_commit", default=False,
         help='''Enable auto commit for --merge/--import/--process.''')
 
+    group.add_option("--synchronous-off",
+        action="store_true", dest="synchronous_off", default=False,
+        help='''DANGEROUS!!! Set synchronous=OFF for the database connections.''')
+
     group.add_option("--use-wal-journal",
         action="store_true", dest="wal_journal", default=False,
         help='''Use journal_mode=WAL for the databases (default is DELETE).''')
