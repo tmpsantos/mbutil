@@ -171,6 +171,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
                         'tile_id':tile_id,
                         'filename':tmp_file_name,
                         'format':new_format,
+                        'size':len(tile_data),
                         'command_list':kwargs['command_list'],
                         'x':x,
                         'y':y,
@@ -193,7 +194,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
 
             for next_tile in processed_tiles:
-                tile_id, tile_file_path, x, y, z = next_tile['tile_id'], next_tile['filename'], next_tile['x'], next_tile['y'], next_tile['z']
+                tile_id, tile_file_path, original_size, x, y, z = next_tile['tile_id'], next_tile['filename'], next_tile['size'], next_tile['x'], next_tile['y'], next_tile['z']
 
                 tmp_file = open(tile_file_path, "r")
                 tile_data = tmp_file.read()

@@ -113,6 +113,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
                     'tile_id' : tile_id,
                     'filename' : tmp_file_name,
                     'format' : image_format,
+                    'size' : len(tile_data),
                     'command_list' : kwargs.get('command_list', [])
                 })
 
@@ -128,7 +129,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
 	# logger.debug("Starting reimport...")
         for next_tile in processed_tiles:
-            tile_id, tile_file_path = next_tile['tile_id'], next_tile['filename']
+            tile_id, tile_file_path, original_size = next_tile['tile_id'], next_tile['filename'], next_tile['size']
 
             tmp_file = open(tile_file_path, "r")
             tile_data = tmp_file.read()
