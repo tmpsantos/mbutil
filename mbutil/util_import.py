@@ -100,6 +100,10 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     count = 0
     start_time = time.time()
 
+    if print_progress:
+        sys.stdout.write("0 tiles imported (0 tiles/sec)")
+        sys.stdout.flush()
+
 
     for r1, zs, ignore in os.walk(os.path.join(directory_path, "tiles")):
         for z in zs:

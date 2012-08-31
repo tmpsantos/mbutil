@@ -40,6 +40,8 @@ def compact_mbtiles(mbtiles_file, **kwargs):
     logger.debug("%d total tiles" % total_tiles)
     if print_progress:
         sys.stdout.write("%d tiles tiles\n" % (total_tiles))
+        sys.stdout.write("0 tiles finished, 0 unique, 0 duplicates (0% @ 0 tiles/sec)")
+        sys.stdout.flush()
 
 
     compaction_prepare(cur)

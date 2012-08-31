@@ -52,6 +52,8 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     logger.debug("%d tiles to export" % (total_tiles))
     if print_progress:
         sys.stdout.write("%d tiles to export\n" % (total_tiles))
+        sys.stdout.write("%d / %d tiles exported (0%% @ 0 tiles/sec)" % (count, total_tiles))
+        sys.stdout.flush()
 
 
     tiles = cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
@@ -87,7 +89,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
             logger.debug("%s / %s tiles exported (%.1f%% @ %.1f tiles/sec)" %
                 (count, total_tiles, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
             if print_progress:
-                sys.stdout.write("\r%s / %s tiles exported (%.1f%% @ %.1f tiles/sec)" %
+                sys.stdout.write("\r%d / %d tiles exported (%.1f%% @ %.1f tiles/sec)" %
                     (count, total_tiles, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
                 sys.stdout.flush()
 
@@ -99,7 +101,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
 
     logger.info("%s / %s tiles exported (100.0%% @ %.1f tiles/sec)" % (count, total_tiles, count / (time.time() - start_time)))
     if print_progress:
-        sys.stdout.write("%s / %s tiles exported (100.0%% @ %.1f tiles/sec)\n" % (count, total_tiles, count / (time.time() - start_time)))
+        sys.stdout.write("%d / %d tiles exported (100.0%% @ %.1f tiles/sec)\n" % (count, total_tiles, count / (time.time() - start_time)))
         sys.stdout.flush()
 
 

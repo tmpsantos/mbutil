@@ -63,7 +63,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     logger.debug("%d tiles to process" % (total_tiles))
     if print_progress:
         sys.stdout.write("%d tiles to process\n" % (total_tiles))
-        sys.stdout.write("\r0 tiles finished (0% @ 0 tiles/sec)")
+        sys.stdout.write("0 tiles finished (0% @ 0 tiles/sec)")
         sys.stdout.flush()
 
 

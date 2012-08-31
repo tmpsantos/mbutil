@@ -121,6 +121,8 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     logger.debug("%d tiles to merge" % (total_tiles))
     if print_progress:
         sys.stdout.write("%d tiles to merge\n" % (total_tiles))
+        sys.stdout.write("0 tiles merged (0% @ 0 tiles/sec)")
+        sys.stdout.flush()
 
 
     # merge and process (--merge --execute)
