@@ -11,7 +11,9 @@ def compact_mbtiles(mbtiles_file, **kwargs):
 
     wal_journal = kwargs.get('wal_journal', False)
     synchronous_off = kwargs.get('synchronous_off', False)
-    tmp_dir  = kwargs.get('tmp_dir', None)
+    tmp_dir = kwargs.get('tmp_dir', None)
+    print_progress = kwargs.get('progress', False)
+
     if tmp_dir and not os.path.isdir(tmp_dir):
         os.mkdir(tmp_dir)
 
@@ -36,6 +38,9 @@ def compact_mbtiles(mbtiles_file, **kwargs):
 
 
     logger.debug("%d total tiles" % total_tiles)
+    if print_progress:
+        sys.stdout.write("%d tiles tiles\n" % (total_tiles))
+
 
     compaction_prepare(cur)
 
@@ -74,9 +79,19 @@ def compact_mbtiles(mbtiles_file, **kwargs):
             if (count % 100) == 0:
                 logger.debug("%s tiles finished, %d unique, %d duplicates (%.1f%% @ %.1f tiles/sec)" %
                     (count, unique, overlapping, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                if print_progress:
+                    sys.stdout.write("\r%s tiles finished, %d unique, %d duplicates (%.1f%% @ %.1f tiles/sec)" %
+                        (count, unique, overlapping, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                    sys.stdout.flush()
 
+
+    if print_progress:
+        sys.stdout.write('\n')
 
     logger.info("%s tiles finished, %d unique, %d duplicates (100.0%% @ %.1f tiles/sec)" % (count, unique, overlapping, count / (time.time() - start_time)))
+    if print_progress:
+        sys.stdout.write("%s tiles finished, %d unique, %d duplicates (100.0%% @ %.1f tiles/sec)\n" % (count, unique, overlapping, count / (time.time() - start_time)))
+        sys.stdout.flush()
 
     compaction_finalize(cur)
     con.commit()

@@ -20,6 +20,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     wal_journal  = kwargs.get('wal_journal', False)
     synchronous_off = kwargs.get('synchronous_off', False)
     delete_after_export = kwargs.get('delete_after_export', False)
+    print_progress = kwargs.get('progress', False)
 
     if tmp_dir and not os.path.isdir(tmp_dir):
         os.mkdir(tmp_dir)
@@ -118,6 +119,8 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         (min_zoom, max_zoom)).fetchone()[0])
 
     logger.debug("%d tiles to merge" % (total_tiles))
+    if print_progress:
+        sys.stdout.write("%d tiles to merge\n" % (total_tiles))
 
 
     # merge and process (--merge --execute)
@@ -184,6 +187,9 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
                     count = count + 1
                     if (count % 100) == 0:
                         logger.debug("%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                        if print_progress:
+                            sys.stdout.write("\r%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                            sys.stdout.flush()
 
 
             if len(tiles_to_process) == 0:
@@ -217,6 +223,9 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
                 count = count + 1
                 if (count % 100) == 0:
                     logger.debug("%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                    if print_progress:
+                        sys.stdout.write("\r%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                        sys.stdout.flush()
 
 
             tiles_to_process = []
@@ -270,6 +279,9 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
             count = count + 1
             if (count % 100) == 0:
                 logger.debug("%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                if print_progress:
+                    sys.stdout.write("\r%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                    sys.stdout.flush()
 
             t = tiles.fetchone()
 
@@ -318,11 +330,20 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
             count = count + 1
             if (count % 100) == 0:
                 logger.debug("%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                if print_progress:
+                    sys.stdout.write("\r%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                    sys.stdout.flush()
 
             t = tiles.fetchone()
 
 
+    if print_progress:
+        sys.stdout.write('\n')
+
     logger.info("%s tiles merged (100.0%% @ %.1f tiles/sec)" % (count, count / (time.time() - start_time)))
+    if print_progress:
+        sys.stdout.write("%s tiles merged (100.0%% @ %.1f tiles/sec)\n" % (count, count / (time.time() - start_time)))
+        sys.stdout.flush()
 
 
     if delete_after_export:

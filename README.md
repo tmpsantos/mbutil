@@ -119,6 +119,8 @@ Python installation (requires easy_install)
                             --import/--merge/--process/--compact.
         --analyze           ANALYZE the mbtiles database after
                             --import/--merge/--process/--compact.
+        --progress          Print progress updates and keep them on one line
+                            during --import/--merge/--export/--compact/--process.
         -q, --quiet         don't print any status messages to stdout except
                             errors.
         -d, --debug         print debug messages to stdout (exclusive to --quiet).

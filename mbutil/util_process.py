@@ -21,6 +21,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     tmp_dir     = kwargs.get('tmp_dir', None)
     default_pool_size = kwargs.get('poolsize', -1)
     synchronous_off   = kwargs.get('synchronous_off', False)
+    print_progress    = kwargs.get('progress', False)
 
     if tmp_dir and not os.path.isdir(tmp_dir):
         os.mkdir(tmp_dir)
@@ -60,6 +61,10 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
         (min_zoom, max_zoom)).fetchone()[0])
 
     logger.debug("%d tiles to process" % (total_tiles))
+    if print_progress:
+        sys.stdout.write("%d tiles to process\n" % (total_tiles))
+        sys.stdout.write("\r0 tiles finished (0% @ 0 tiles/sec)")
+        sys.stdout.flush()
 
 
     logger.debug("Creating an index for the tile_id column...")
@@ -127,7 +132,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
         # logger.debug("Starting multiprocessing...")
         processed_tiles = pool.map(process_tile, tiles_to_process)
 
-	# logger.debug("Starting reimport...")
+	    # logger.debug("Starting reimport...")
         for next_tile in processed_tiles:
             tile_id, tile_file_path, original_size = next_tile['tile_id'], next_tile['filename'], next_tile['size']
 
@@ -157,10 +162,21 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
             if (count % 100) == 0:
                 logger.debug("%s tiles finished (%.1f%% @ %.1f tiles/sec)" %
                     (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                if print_progress:
+                    sys.stdout.write("\r%s tiles finished (%.1f%% @ %.1f tiles/sec)" %
+                        (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                    sys.stdout.flush()
 
+
+    if print_progress:
+        sys.stdout.write('\n')
 
     logger.info("%s tiles finished, %d duplicates ignored (100.0%% @ %.1f tiles/sec)" %
         (count, duplicates, count / (time.time() - start_time)))
+    if print_progress:
+        sys.stdout.write("%s tiles finished, %d duplicates ignored (100.0%% @ %.1f tiles/sec)\n" %
+            (count, duplicates, count / (time.time() - start_time)))
+        sys.stdout.flush()
 
     pool.close()
     con.commit()

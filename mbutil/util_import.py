@@ -16,6 +16,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     auto_commit  = kwargs.get('auto_commit', False)
     wal_journal  = kwargs.get('wal_journal', False)
     synchronous_off = kwargs.get('synchronous_off', False)
+    print_progress  = kwargs.get('progress', False)
     zoom     = kwargs.get('zoom', -1)
     min_zoom = kwargs.get('min_zoom', 0)
     max_zoom = kwargs.get('max_zoom', 18)
@@ -144,11 +145,19 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
                             count = count + 1
                             if (count % 100) == 0:
-                                logger.debug("%s tiles imported (%d tiles/sec)" %
-                                    (count, count / (time.time() - start_time)))
+                                logger.debug("%s tiles imported (%d tiles/sec)" % (count, count / (time.time() - start_time)))
+                                if print_progress:
+                                    sys.stdout.write("\r%s tiles imported (%d tiles/sec)" % (count, count / (time.time() - start_time)))
+                                    sys.stdout.flush()
 
+
+    if print_progress:
+        sys.stdout.write('\n')
 
     logger.info("%d tiles imported." % (count))
+    if print_progress:
+        sys.stdout.write("%d tiles imported.\n" % (count))
+        sys.stdout.flush()
 
     con.commit()
     con.close()

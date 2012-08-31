@@ -149,6 +149,10 @@ if __name__ == '__main__':
         action="store_false", dest="skip_analyze", default=True,
         help='''ANALYZE the mbtiles database after --import/--merge/--process/--compact.''')
 
+    group.add_option("--progress",
+        action="store_true", dest="progress", default=False,
+        help='''Print progress updates and keep them on one line during --import/--merge/--export/--compact/--process.''')
+
     group.add_option("-q", "--quiet",
         action="store_true", dest="quiet", default=False,
         help='''don't print any status messages to stdout except errors.''')

@@ -17,6 +17,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     min_zoom = kwargs.get('min_zoom', 0)
     max_zoom = kwargs.get('max_zoom', 18)
     tmp_dir  = kwargs.get('tmp_dir', None)
+    print_progress = kwargs.get('progress', False)
 
     if tmp_dir and not os.path.isdir(tmp_dir):
         os.mkdir(tmp_dir)
@@ -46,6 +47,11 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     total_tiles = con.execute("""SELECT count(zoom_level) FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
         (min_zoom, max_zoom)).fetchone()[0]
     sending_mbtiles_is_compacted = (con.execute("SELECT count(name) FROM sqlite_master WHERE type='table' AND name='images'").fetchone()[0] > 0)
+
+
+    logger.debug("%d tiles to export" % (total_tiles))
+    if print_progress:
+        sys.stdout.write("%d tiles to export\n" % (total_tiles))
 
 
     tiles = cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
@@ -80,11 +86,21 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         if (count % 100) == 0:
             logger.debug("%s / %s tiles exported (%.1f%% @ %.1f tiles/sec)" %
                 (count, total_tiles, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+            if print_progress:
+                sys.stdout.write("\r%s / %s tiles exported (%.1f%% @ %.1f tiles/sec)" %
+                    (count, total_tiles, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                sys.stdout.flush()
 
         t = tiles.fetchone()
 
 
+    if print_progress:
+        sys.stdout.write('\n')
+
     logger.info("%s / %s tiles exported (100.0%% @ %.1f tiles/sec)" % (count, total_tiles, count / (time.time() - start_time)))
+    if print_progress:
+        sys.stdout.write("%s / %s tiles exported (100.0%% @ %.1f tiles/sec)\n" % (count, total_tiles, count / (time.time() - start_time)))
+        sys.stdout.flush()
 
 
     if delete_after_export:
