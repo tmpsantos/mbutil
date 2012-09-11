@@ -22,6 +22,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     default_pool_size = kwargs.get('poolsize', -1)
     synchronous_off   = kwargs.get('synchronous_off', False)
     print_progress    = kwargs.get('progress', False)
+    delete_vanished_tiles = kwargs.get('delete_vanished_tiles', False)
 
     if tmp_dir and not os.path.isdir(tmp_dir):
         os.mkdir(tmp_dir)
@@ -99,9 +100,9 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
         while t:
             tile_id = t[0]
             tile_data = t[1]
-            # tile_z = t[2]
-            # tile_x = t[3]
-            # tile_y = t[4]
+            tile_z = t[2]
+            tile_x = t[3]
+            tile_y = t[4]
             # logging.debug("Working on tile (%d, %d, %d)" % (tile_z, tile_x, tile_y))
 
             if tile_id in processed_tile_ids:
@@ -116,6 +117,9 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
                 tiles_to_process.append({
                     'tile_id' : tile_id,
+                    'tile_x' : tile_x,
+                    'tile_y' : tile_y,
+                    'tile_z' : tile_z,
                     'filename' : tmp_file_name,
                     'format' : image_format,
                     'size' : len(tile_data),
@@ -134,13 +138,21 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
 	    # logger.debug("Starting reimport...")
         for next_tile in processed_tiles:
+            tile_data = None
             tile_id, tile_file_path, original_size = next_tile['tile_id'], next_tile['filename'], next_tile['size']
 
-            tmp_file = open(tile_file_path, "r")
-            tile_data = tmp_file.read()
-            tmp_file.close()
+            if not os.path.isfile(tile_file_path):
+                if delete_vanished_tiles:
+                    cur.execute("""delete from map where tile_id=?""", (tile_id, ));
+                    cur.execute("""delete from images where tile_id=?""", (tile_id, ))
+                    logger.debug("Removed vanished tile %s" % (tile_id, ))
+                continue
+            else:
+                tmp_file = open(tile_file_path, "r")
+                tile_data = tmp_file.read()
+                tmp_file.close()
 
-            os.remove(tile_file_path)
+                os.remove(tile_file_path)
 
             if tile_data and len(tile_data) > 0:
                 m = hashlib.md5()

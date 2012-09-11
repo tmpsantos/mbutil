@@ -21,6 +21,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     synchronous_off = kwargs.get('synchronous_off', False)
     delete_after_export = kwargs.get('delete_after_export', False)
     print_progress = kwargs.get('progress', False)
+    delete_vanished_tiles = kwargs.get('delete_vanished_tiles', False)
 
     if tmp_dir and not os.path.isdir(tmp_dir):
         os.mkdir(tmp_dir)
@@ -202,13 +203,21 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
 
             for next_tile in processed_tiles:
+                tile_data = None
                 tile_id, tile_file_path, original_size, x, y, z = next_tile['tile_id'], next_tile['filename'], next_tile['size'], next_tile['x'], next_tile['y'], next_tile['z']
 
-                tmp_file = open(tile_file_path, "r")
-                tile_data = tmp_file.read()
-                tmp_file.close()
+                if not os.path.isfile(tile_file_path):
+                    if delete_vanished_tiles:
+                        logger.debug("Skipping vanished tile %s" % (tile_id, ))
+                    else:
+                        logger.error("tile %s vanished!" % (tile_id, ))
+                    continue
+                else:
+                    tmp_file = open(tile_file_path, "r")
+                    tile_data = tmp_file.read()
+                    tmp_file.close()
 
-                os.remove(tile_file_path)
+                    os.remove(tile_file_path)
 
                 if tile_data and len(tile_data) > 0:
                     m = hashlib.md5()

@@ -133,6 +133,10 @@ if __name__ == '__main__':
         action="store_true", dest="delete_after_export", default=False,
         help='''DANGEROUS!!! After a --merge or --export, this option will delete all the merged/exported tiles from the (sending) database. Only really usefull with --min-zoom/--max-zoom or --zoom since it would remove all tiles from the database otherwise.''')
 
+    group.add_option("--delete-vanished-tiles",
+        action="store_true", dest="delete_vanished_tiles", default=False,
+        help='''DANGEROUS!!! If a tile vanishes during --execute then delete it also from the database or ignore it during --merge/--process.''')
+
     group.add_option("--poolsize",
         type="int", default=-1,
         help="""Pool size for processing tiles with --process/--merge. Default is to use a pool size equal to the number of cpus/cores.""")

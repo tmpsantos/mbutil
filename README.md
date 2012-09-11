@@ -110,6 +110,10 @@ Python installation (requires easy_install)
                             (sending) database. Only really usefull with --min-
                             zoom/--max-zoom or --zoom since it would remove all
                             tiles from the database otherwise.
+        --delete-vanished-tiles
+                            DANGEROUS!!! If a tile vanishes during --execute then
+                            delete it also from the database or ignore it during
+                            --merge/--process.
         --poolsize=POOLSIZE
                             Pool size for processing tiles with --process/--merge.
                             Default is to use a pool size equal to the number of
