@@ -42,7 +42,10 @@ def optimize_connection(cur, wal_journal=False, synchronous_off=False, exclusive
     if wal_journal:
         cur.execute("PRAGMA journal_mode = WAL")
     else:
-        cur.execute("PRAGMA journal_mode = DELETE")
+        try:
+            cur.execute("PRAGMA journal_mode = DELETE")
+        except sqlite3.OperationalError:
+            pass
 
     if exclusive_lock:
         cur.execute("PRAGMA locking_mode = EXCLUSIVE")
