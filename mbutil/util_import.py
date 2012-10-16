@@ -121,12 +121,12 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                                     logging.debug("Ignoring tile (%s, %s, %s)" % (z, x, y))
                                     continue
 
-                            if kwargs.get('flip_y', False) == True:
-                                y = str(flip_y(z, y))
-
                             f = open(os.path.join(r1, z, x, y) + '.' + extension, 'rb')
                             tile_data = f.read()
                             f.close()
+
+                            if kwargs.get('flip_y', False) == True:
+                                y = str(flip_y(z, y))
 
                             # Execute commands
                             if kwargs.get('command_list'):
