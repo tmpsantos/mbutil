@@ -92,6 +92,8 @@ def compaction_finalize(cur):
         CREATE UNIQUE INDEX map_index ON map
         (zoom_level, tile_column, tile_row)""")
     cur.execute("""
+        CREATE INDEX updated_at_index ON map (updated_at)""")
+    cur.execute("""
           CREATE UNIQUE INDEX images_id ON images (tile_id)""")
 
 
@@ -100,6 +102,11 @@ def compaction_update(cur):
         cur.execute("""
             ALTER TABLE map ADD COLUMN
             updated_at INTEGER""")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cur.execute("""
+            CREATE INDEX updated_at_index ON map (updated_at)""")
     except sqlite3.OperationalError:
         pass
 

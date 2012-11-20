@@ -18,6 +18,8 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     max_zoom = kwargs.get('max_zoom', 18)
     tmp_dir  = kwargs.get('tmp_dir', None)
     print_progress = kwargs.get('progress', False)
+    min_timestamp  = kwargs.get('min_timestamp', 0)
+    max_timestamp  = kwargs.get('max_timestamp', 0)
 
     if tmp_dir and not os.path.isdir(tmp_dir):
         os.mkdir(tmp_dir)
@@ -49,6 +51,12 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     sending_mbtiles_is_compacted = (con.execute("SELECT count(name) FROM sqlite_master WHERE type='table' AND name='images'").fetchone()[0] > 0)
 
 
+    if not sending_mbtiles_is_compacted and (min_timestamp != 0 or max_timestamp != 0):
+        con.close()
+        sys.stderr.write('min-timestamp/max-timestamp can only be used with compacted databases.\n')
+        sys.exit(1)
+
+
     logger.debug("%d tiles to export" % (total_tiles))
     if print_progress:
         sys.stdout.write("%d tiles to export\n" % (total_tiles))
@@ -56,8 +64,20 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         sys.stdout.flush()
 
 
-    tiles = cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
-        (min_zoom, max_zoom))
+    tiles = None
+    if min_timestamp> 0 and max_timestamp > 0:
+        tiles = cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?""",
+            (min_zoom, max_zoom, min_timestamp, max_timestamp))
+    elif min_timestamp > 0:
+        tiles = cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at>?""",
+            (min_zoom, max_zoom, min_timestamp))
+    elif max_timestamp > 0:
+        tiles = cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at<?""",
+            (min_zoom, max_zoom, max_timestamp))
+    else:
+        tiles = cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
+            (min_zoom, max_zoom))
+
     t = tiles.fetchone()
     while t:
         z = t[0]
@@ -109,9 +129,22 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         logger.debug("WARNING: Removing exported tiles from %s" % (mbtiles_file))
 
         if sending_mbtiles_is_compacted:
-            cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=?)""",
-                (min_zoom, max_zoom))
-            cur.execute("""DELETE FROM map WHERE zoom_level>=? AND zoom_level<=?""", (min_zoom, max_zoom))
+            if min_timestamp > 0 and max_timestamp > 0:
+                cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?)""",
+                    (min_zoom, max_zoom, min_timestamp, max_timestamp))
+                cur.execute("""DELETE FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?""", (min_zoom, max_zoom, min_timestamp, max_timestamp))
+            elif min_timestamp > 0:
+                cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>?)""",
+                    (min_zoom, max_zoom, min_timestamp))
+                cur.execute("""DELETE FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>?""", (min_zoom, max_zoom, min_timestamp))
+            elif max_timestamp > 0:
+                cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at<?)""",
+                    (min_zoom, max_zoom, max_timestamp))
+                cur.execute("""DELETE FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at<?""", (min_zoom, max_zoom, max_timestamp))
+            else:
+                cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=?)""",
+                    (min_zoom, max_zoom))
+                cur.execute("""DELETE FROM map WHERE zoom_level>=? AND zoom_level<=?""", (min_zoom, max_zoom))
         else:
             cur.execute("""DELETE FROM tiles WHERE zoom_level>=? AND zoom_level<=?""", (min_zoom, max_zoom))
 

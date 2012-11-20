@@ -15,9 +15,11 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     min_zoom = kwargs.get('min_zoom', 0)
     max_zoom = kwargs.get('max_zoom', 18)
     tmp_dir  = kwargs.get('tmp_dir', None)
-    no_overwrite = kwargs.get('no_overwrite', False)
-    auto_commit  = kwargs.get('auto_commit', False)
-    wal_journal  = kwargs.get('wal_journal', False)
+    no_overwrite  = kwargs.get('no_overwrite', False)
+    auto_commit   = kwargs.get('auto_commit', False)
+    wal_journal   = kwargs.get('wal_journal', False)
+    min_timestamp = kwargs.get('min_timestamp', 0)
+    max_timestamp = kwargs.get('max_timestamp', 0)
     synchronous_off = kwargs.get('synchronous_off', False)
     delete_after_export = kwargs.get('delete_after_export', False)
     print_progress = kwargs.get('progress', False)
@@ -51,6 +53,11 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         con1.close()
         con2.close()
         sys.stderr.write('To merge two mbtiles databases, the receiver must already be compacted\n')
+        sys.exit(1)
+
+    if not sending_mbtiles_is_compacted and (min_timestamp != 0 or max_timestamp != 0):
+        con.close()
+        sys.stderr.write('min-timestamp/max-timestamp can only be used with compacted databases.\n')
         sys.exit(1)
 
     if receiving_mbtiles_is_compacted:

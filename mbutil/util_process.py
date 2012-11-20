@@ -22,6 +22,8 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     default_pool_size = kwargs.get('poolsize', -1)
     synchronous_off   = kwargs.get('synchronous_off', False)
     print_progress    = kwargs.get('progress', False)
+    min_timestamp     = kwargs.get('min_timestamp', 0)
+    max_timestamp     = kwargs.get('max_timestamp', 0)
     delete_vanished_tiles = kwargs.get('delete_vanished_tiles', False)
 
     if tmp_dir and not os.path.isdir(tmp_dir):
