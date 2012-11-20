@@ -1,6 +1,6 @@
 import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile
 
-from util import mbtiles_connect, optimize_connection, optimize_database, execute_commands_on_tile, flip_y
+from util import mbtiles_connect, optimize_connection, optimize_database, compaction_update, execute_commands_on_tile, flip_y
 
 logger = logging.getLogger(__name__)
 
@@ -46,15 +46,30 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     count = 0
     start_time = time.time()
     image_format = metadata.get('format', 'png')
-    total_tiles = con.execute("""SELECT count(zoom_level) FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
-        (min_zoom, max_zoom)).fetchone()[0]
     sending_mbtiles_is_compacted = (con.execute("SELECT count(name) FROM sqlite_master WHERE type='table' AND name='images'").fetchone()[0] > 0)
+
+    total_tiles = 0
+    if min_timestamp > 0 and max_timestamp > 0:
+        total_tiles = con.execute("""SELECT count(zoom_level) FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?""",
+            (min_zoom, max_zoom, min_timestamp, max_timestamp)).fetchone()[0]
+    elif min_timestamp > 0:
+        total_tiles = con.execute("""SELECT count(zoom_level) FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at>?""",
+            (min_zoom, max_zoom, min_timestamp)).fetchone()[0]
+    elif max_timestamp > 0:
+        total_tiles = con.execute("""SELECT count(zoom_level) FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at<?""",
+            (min_zoom, max_zoom, max_timestamp)).fetchone()[0]
+    else:
+        total_tiles = con.execute("""SELECT count(zoom_level) FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
+            (min_zoom, max_zoom)).fetchone()[0]
 
 
     if not sending_mbtiles_is_compacted and (min_timestamp != 0 or max_timestamp != 0):
         con.close()
         sys.stderr.write('min-timestamp/max-timestamp can only be used with compacted databases.\n')
         sys.exit(1)
+
+    if sending_mbtiles_is_compacted:
+        compaction_update(cur)
 
 
     logger.debug("%d tiles to export" % (total_tiles))
@@ -63,9 +78,8 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         sys.stdout.write("%d / %d tiles exported (0%% @ 0 tiles/sec)" % (count, total_tiles))
         sys.stdout.flush()
 
-
     tiles = None
-    if min_timestamp> 0 and max_timestamp > 0:
+    if min_timestamp > 0 and max_timestamp > 0:
         tiles = cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?""",
             (min_zoom, max_zoom, min_timestamp, max_timestamp))
     elif min_timestamp > 0:

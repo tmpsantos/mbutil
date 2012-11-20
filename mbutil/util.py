@@ -78,7 +78,7 @@ def compaction_prepare(cur):
 
 def compaction_finalize(cur):
     try:
-        cur.execute("""DROP TABLE tiles""")
+        cur.execute("""DROP VIEW tiles""")
     except sqlite3.OperationalError:
         pass
     cur.execute("""
@@ -86,15 +86,16 @@ def compaction_finalize(cur):
         SELECT map.zoom_level AS zoom_level,
         map.tile_column AS tile_column,
         map.tile_row AS tile_row,
-        images.tile_data AS tile_data FROM
+        images.tile_data AS tile_data,
+        map.updated_at AS updated_at FROM
         map JOIN images ON images.tile_id = map.tile_id""")
     cur.execute("""
-        CREATE UNIQUE INDEX map_index ON map
+        CREATE UNIQUE INDEX IF NOT EXISTS map_index ON map
         (zoom_level, tile_column, tile_row)""")
     cur.execute("""
-        CREATE INDEX updated_at_index ON map (updated_at)""")
+        CREATE INDEX IF NOT EXISTS updated_at_index ON map (updated_at)""")
     cur.execute("""
-          CREATE UNIQUE INDEX images_id ON images (tile_id)""")
+          CREATE UNIQUE INDEX IF NOT EXISTS images_id ON images (tile_id)""")
 
 
 def compaction_update(cur):
@@ -104,9 +105,9 @@ def compaction_update(cur):
             updated_at INTEGER""")
     except sqlite3.OperationalError:
         pass
+
     try:
-        cur.execute("""
-            CREATE INDEX updated_at_index ON map (updated_at)""")
+        compaction_finalize(cur)
     except sqlite3.OperationalError:
         pass
 
