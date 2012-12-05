@@ -9,7 +9,7 @@
 import logging, os, sys
 from optparse import OptionParser, OptionGroup
 
-from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database_file, compact_mbtiles, check_mbtiles, execute_commands_on_mbtiles, convert_string
+from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database_file, compact_mbtiles, check_mbtiles, test_mbtiles, execute_commands_on_mbtiles, convert_string
 
 if __name__ == '__main__':
 
@@ -36,6 +36,9 @@ if __name__ == '__main__':
 
     Check if a mbtiles file contains all tiles at a specific zoom level:
     $ mb-util --check --zoom=7 world.mbtiles
+
+    Test tiles with a command, print tile coordinates for non-zero return values
+    $ mb-util --test --execute "COMMAND ARGUMENTS" world.mbtiles
 
     Compact a mbtiles file by eliminating duplicate images:
     $ mb-util --compact world.mbtiles
@@ -69,6 +72,11 @@ if __name__ == '__main__':
     group.add_option("--check",
         dest='check', action="store_true",
         help='''Check the database for missing tiles.''',
+        default=False)
+
+    group.add_option("--test",
+        dest='test', action="store_true",
+        help='''Test every tile with the given command, print the tile coordinate if the command returns anything non-zero.''',
         default=False)
 
     group.add_option("--compact",
@@ -120,6 +128,10 @@ if __name__ == '__main__':
     group.add_option("--no-overwrite",
         action="store_true", dest="no_overwrite", default=False,
         help='''don't overwrite existing tiles during --merge/--import/--export.''')
+
+    group.add_option("--revert-test",
+        action="store_true", dest="revert_test", default=False,
+        help='''For --test, print the tile coordinates if the command returns zero.''')
 
     group.add_option("--auto-commit",
         action="store_true", dest="auto_commit", default=False,
@@ -230,6 +242,16 @@ if __name__ == '__main__':
                 sys.exit(1)
             compact_mbtiles(args[0], **options.__dict__)
             optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.wal_journal)
+            sys.exit(0)
+
+        if options.test:
+            if not os.path.isfile(args[0]):
+                sys.stderr.write('The mbtiles database to test must exist.\n')
+                sys.exit(1)
+            if options.command_list == None or len(options.command_list) != 1:
+                sys.stderr.write('Need exactly one command to execute for each tile.\n')
+                sys.exit(1)
+            test_mbtiles(args[0], **options.__dict__)
             sys.exit(0)
 
         # Create an empty mbtiles db?
