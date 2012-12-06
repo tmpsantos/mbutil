@@ -18,7 +18,7 @@ def test_tile(next_tile):
     result = os.system(command % (tile_file_path))
 
     if (revert_test == False and result != 0) or (revert_test == True and result == 0):
-        sys.stderr.write("%s,%s,%s\n" % (next_tile['tile_z'], next_tile['tile_x'], next_tile['tile_y']))
+        sys.stderr.write("/%s/%s/%s.%s\n" % (next_tile['tile_z'], next_tile['tile_x'], next_tile['tile_y'], next_tile['format']))
 
     return next_tile
 
@@ -95,6 +95,7 @@ def test_mbtiles(mbtiles_file, **kwargs):
                     'tile_y' : tile_y,
                     'tile_z' : tile_z,
                     'filename' : tmp_file_name,
+                    'format' : image_format,
                     'revert_test' : revert_test,
                     'command_list' : kwargs.get('command_list', [])
                 })
