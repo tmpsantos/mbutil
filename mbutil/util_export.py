@@ -120,7 +120,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
 
         count = count + 1
         if (count % 100) == 0:
-            logger.debug("%s / %s tiles exported (%.1f%% @ %.1f tiles/sec)" %
+            logger.debug("%d / %d tiles exported (%.1f%% @ %.1f tiles/sec)" %
                 (count, total_tiles, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
             if print_progress:
                 sys.stdout.write("\r%d / %d tiles exported (%.1f%% @ %.1f tiles/sec)" %
@@ -133,7 +133,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     if print_progress:
         sys.stdout.write('\n')
 
-    logger.info("%s / %s tiles exported (100.0%% @ %.1f tiles/sec)" % (count, total_tiles, count / (time.time() - start_time)))
+    logger.info("%d / %d tiles exported (100.0%% @ %.1f tiles/sec)" % (count, total_tiles, count / (time.time() - start_time)))
     if print_progress:
         sys.stdout.write("%d / %d tiles exported (100.0%% @ %.1f tiles/sec)\n" % (count, total_tiles, count / (time.time() - start_time)))
         sys.stdout.flush()

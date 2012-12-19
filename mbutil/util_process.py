@@ -174,10 +174,10 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
             count = count + 1
             if (count % 100) == 0:
-                logger.debug("%s tiles finished (%.1f%% @ %.1f tiles/sec)" %
+                logger.debug("%d tiles finished (%.1f%% @ %.1f tiles/sec)" %
                     (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
                 if print_progress:
-                    sys.stdout.write("\r%s tiles finished (%.1f%% @ %.1f tiles/sec)" %
+                    sys.stdout.write("\r%d tiles finished (%.1f%% @ %.1f tiles/sec)" %
                         (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
                     sys.stdout.flush()
 
@@ -185,10 +185,10 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     if print_progress:
         sys.stdout.write('\n')
 
-    logger.info("%s tiles finished, %d duplicates ignored (100.0%% @ %.1f tiles/sec)" %
+    logger.info("%d tiles finished, %d duplicates ignored (100.0%% @ %.1f tiles/sec)" %
         (count, duplicates, count / (time.time() - start_time)))
     if print_progress:
-        sys.stdout.write("%s tiles finished, %d duplicates ignored (100.0%% @ %.1f tiles/sec)\n" %
+        sys.stdout.write("%d tiles finished, %d duplicates ignored (100.0%% @ %.1f tiles/sec)\n" %
             (count, duplicates, count / (time.time() - start_time)))
         sys.stdout.flush()
 

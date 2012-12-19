@@ -11,18 +11,21 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     logger.info("Merging databases: %s --> %s" % (mbtiles_file2, mbtiles_file1))
 
 
-    zoom     = kwargs.get('zoom', -1)
-    min_zoom = kwargs.get('min_zoom', 0)
-    max_zoom = kwargs.get('max_zoom', 18)
-    tmp_dir  = kwargs.get('tmp_dir', None)
-    no_overwrite  = kwargs.get('no_overwrite', False)
-    auto_commit   = kwargs.get('auto_commit', False)
-    wal_journal   = kwargs.get('wal_journal', False)
+    zoom          = kwargs.get('zoom', -1)
+    min_zoom      = kwargs.get('min_zoom', 0)
+    max_zoom      = kwargs.get('max_zoom', 18)
+
+    tmp_dir         = kwargs.get('tmp_dir', None)
+    no_overwrite    = kwargs.get('no_overwrite', False)
+    auto_commit     = kwargs.get('auto_commit', False)
+    wal_journal     = kwargs.get('wal_journal', False)
+    synchronous_off = kwargs.get('synchronous_off', False)
+
     min_timestamp = kwargs.get('min_timestamp', 0)
     max_timestamp = kwargs.get('max_timestamp', 0)
-    synchronous_off = kwargs.get('synchronous_off', False)
-    delete_after_export = kwargs.get('delete_after_export', False)
-    print_progress = kwargs.get('progress', False)
+
+    delete_after_export   = kwargs.get('delete_after_export', False)
+    print_progress        = kwargs.get('progress', False)
     delete_vanished_tiles = kwargs.get('delete_vanished_tiles', False)
 
     if tmp_dir and not os.path.isdir(tmp_dir):
@@ -123,8 +126,20 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     start_time = time.time()
     chunk = 1000
 
-    total_tiles = (con2.execute("""SELECT count(*) FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
-        (min_zoom, max_zoom)).fetchone()[0])
+    total_tiles = 0
+    if min_timestamp > 0 and max_timestamp > 0:
+        total_tiles = cur1.execute("""SELECT count(zoom_level) FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?""",
+            (min_zoom, max_zoom, min_timestamp, max_timestamp)).fetchone()[0]
+    elif min_timestamp > 0:
+        total_tiles = cur1.execute("""SELECT count(zoom_level) FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at>?""",
+            (min_zoom, max_zoom, min_timestamp)).fetchone()[0]
+    elif max_timestamp > 0:
+        total_tiles = cur1.execute("""SELECT count(zoom_level) FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at<?""",
+            (min_zoom, max_zoom, max_timestamp)).fetchone()[0]
+    else:
+        total_tiles = cur1.execute("""SELECT count(zoom_level) FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
+            (min_zoom, max_zoom)).fetchone()[0]
+
 
     logger.debug("%d tiles to merge" % (total_tiles))
     if print_progress:
@@ -153,8 +168,18 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
         # First: Merge images
         for i in range((max_rowid / chunk) + 1):
-            cur2.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_id, images.tile_data FROM images, map WHERE (map.rowid > ? AND map.rowid <= ?) AND (map.zoom_level>=? AND map.zoom_level<=?) AND (images.tile_id == map.tile_id)""",
-                ((i * chunk), ((i + 1) * chunk), min_zoom, max_zoom))
+            if min_timestamp > 0 and max_timestamp > 0:
+                cur2.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_id, images.tile_data FROM images, map WHERE (map.rowid > ? AND map.rowid <= ?) AND (map.zoom_level>=? AND map.zoom_level<=?) AND (map.updated_at>? AND map.updated_at<?) AND (images.tile_id == map.tile_id)""",
+                    ((i * chunk), ((i + 1) * chunk), min_zoom, max_zoom, min_timestamp, max_timestamp))
+            elif min_timestamp > 0:
+                cur2.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_id, images.tile_data FROM images, map WHERE (map.rowid > ? AND map.rowid <= ?) AND (map.zoom_level>=? AND map.zoom_level<=?) AND (map.updated_at>?) AND (images.tile_id == map.tile_id)""",
+                    ((i * chunk), ((i + 1) * chunk), min_zoom, max_zoom, min_timestamp))
+            elif max_timestamp > 0:
+                cur2.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_id, images.tile_data FROM images, map WHERE (map.rowid > ? AND map.rowid <= ?) AND (map.zoom_level>=? AND map.zoom_level<=?) AND (map.updated_at<?) AND (images.tile_id == map.tile_id)""",
+                    ((i * chunk), ((i + 1) * chunk), min_zoom, max_zoom, max_timestamp))
+            else:
+                cur2.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_id, images.tile_data FROM images, map WHERE (map.rowid > ? AND map.rowid <= ?) AND (map.zoom_level>=? AND map.zoom_level<=?) AND (images.tile_id == map.tile_id)""",
+                    ((i * chunk), ((i + 1) * chunk), min_zoom, max_zoom))
 
             rows = cur2.fetchall()
             for t in rows:
@@ -196,9 +221,9 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
                     count = count + 1
                     if (count % 100) == 0:
-                        logger.debug("%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                        logger.debug("%d tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
                         if print_progress:
-                            sys.stdout.write("\r%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                            sys.stdout.write("\r%d tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
                             sys.stdout.flush()
 
 
@@ -240,9 +265,9 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
                 count = count + 1
                 if (count % 100) == 0:
-                    logger.debug("%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                    logger.debug("%d tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
                     if print_progress:
-                        sys.stdout.write("\r%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                        sys.stdout.write("\r%d tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
                         sys.stdout.flush()
 
 
@@ -255,8 +280,18 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         known_tile_ids = {}
 
         # First: Merge images
-        tiles = cur2.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_id, images.tile_data FROM images, map WHERE map.zoom_level>=? AND map.zoom_level<=? AND images.tile_id=map.tile_id""",
-            (min_zoom, max_zoom))
+        if min_timestamp > 0 and max_timestamp > 0:
+            tiles = cur2.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_id, images.tile_data FROM images, map WHERE map.zoom_level>=? AND map.zoom_level<=? AND map.updated_at>? AND map.updated_at<? AND images.tile_id=map.tile_id""",
+                (min_zoom, max_zoom, min_timestamp, max_timestamp))
+        elif min_timestamp > 0:
+            tiles = cur2.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_id, images.tile_data FROM images, map WHERE map.zoom_level>=? AND map.zoom_level<=? AND map.updated_at>? AND images.tile_id=map.tile_id""",
+                (min_zoom, max_zoom, min_timestamp))
+        elif max_timestamp > 0:
+            tiles = cur2.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_id, images.tile_data FROM images, map WHERE map.zoom_level>=? AND map.zoom_level<=? AND map.updated_at<? AND images.tile_id=map.tile_id""",
+                (min_zoom, max_zoom, max_timestamp))
+        else:
+            tiles = cur2.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_id, images.tile_data FROM images, map WHERE map.zoom_level>=? AND map.zoom_level<=? AND images.tile_id=map.tile_id""",
+                (min_zoom, max_zoom))
 
         t = tiles.fetchone()
         while t:
@@ -296,9 +331,9 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
             count = count + 1
             if (count % 100) == 0:
-                logger.debug("%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                logger.debug("%d tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
                 if print_progress:
-                    sys.stdout.write("\r%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                    sys.stdout.write("\r%d tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
                     sys.stdout.flush()
 
             t = tiles.fetchone()
@@ -347,9 +382,9 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
             count = count + 1
             if (count % 100) == 0:
-                logger.debug("%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                logger.debug("%d tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
                 if print_progress:
-                    sys.stdout.write("\r%s tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
+                    sys.stdout.write("\r%d tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
                     sys.stdout.flush()
 
             t = tiles.fetchone()
@@ -358,9 +393,9 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     if print_progress:
         sys.stdout.write('\n')
 
-    logger.info("%s tiles merged (100.0%% @ %.1f tiles/sec)" % (count, count / (time.time() - start_time)))
+    logger.info("%d tiles merged (100.0%% @ %.1f tiles/sec)" % (count, count / (time.time() - start_time)))
     if print_progress:
-        sys.stdout.write("%s tiles merged (100.0%% @ %.1f tiles/sec)\n" % (count, count / (time.time() - start_time)))
+        sys.stdout.write("%d tiles merged (100.0%% @ %.1f tiles/sec)\n" % (count, count / (time.time() - start_time)))
         sys.stdout.flush()
 
 
@@ -368,10 +403,22 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         logger.debug("WARNING: Removing merged tiles from %s" % (mbtiles_file2))
 
         if sending_mbtiles_is_compacted:
-            cur2.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=?)""",
-                (min_zoom, max_zoom))
-            cur2.execute("""DELETE FROM map WHERE zoom_level>=? AND zoom_level<=?""",
-                (min_zoom, max_zoom))
+            if min_timestamp > 0 and max_timestamp > 0:
+                cur2.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?)""",
+                    (min_zoom, max_zoom, min_timestamp, max_timestamp))
+                cur2.execute("""DELETE FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?""", (min_zoom, max_zoom, min_timestamp, max_timestamp))
+            elif min_timestamp > 0:
+                cur2.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>?)""",
+                    (min_zoom, max_zoom, min_timestamp))
+                cur2.execute("""DELETE FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>?""", (min_zoom, max_zoom, min_timestamp))
+            elif max_timestamp > 0:
+                cur2.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at<?)""",
+                    (min_zoom, max_zoom, max_timestamp))
+                cur2.execute("""DELETE FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at<?""", (min_zoom, max_zoom, max_timestamp))
+            else:
+                cur2.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=?)""",
+                    (min_zoom, max_zoom))
+                cur2.execute("""DELETE FROM map WHERE zoom_level>=? AND zoom_level<=?""", (min_zoom, max_zoom))
         else:
             cur2.execute("""DELETE FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
                 (min_zoom, max_zoom))

@@ -118,7 +118,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
                             if no_overwrite:
                                 if x in existing_tiles.get(z, {}).get(y, set()):
-                                    logging.debug("Ignoring tile (%s, %s, %s)" % (z, x, y))
+                                    logging.debug("Ignoring tile (%d, %d, %d)" % (z, x, y))
                                     continue
 
                             f = open(os.path.join(r1, z, x, y) + '.' + extension, 'rb')
@@ -149,9 +149,9 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
                             count = count + 1
                             if (count % 100) == 0:
-                                logger.debug("%s tiles imported (%d tiles/sec)" % (count, count / (time.time() - start_time)))
+                                logger.debug("%d tiles imported (%.1f tiles/sec)" % (count, count / (time.time() - start_time)))
                                 if print_progress:
-                                    sys.stdout.write("\r%s tiles imported (%d tiles/sec)" % (count, count / (time.time() - start_time)))
+                                    sys.stdout.write("\r%d tiles imported (%.1f tiles/sec)" % (count, count / (time.time() - start_time)))
                                     sys.stdout.flush()
 
 

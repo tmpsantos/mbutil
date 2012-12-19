@@ -118,11 +118,11 @@ if __name__ == '__main__':
         type='int', default=-1)
 
     group.add_option('--min-timestamp', dest='min_timestamp',
-        help='''Minimum numerical timestamp for --export.''',
+        help='''Minimum numerical timestamp for --export/--merge.''',
         type="int", default=0)
 
     group.add_option('--max-timestamp', dest='max_timestamp',
-        help='''Maximum numerical timestamp for --export.''',
+        help='''Maximum numerical timestamp for --export/--merge.''',
         type="int", default=0)
 
     group.add_option("--no-overwrite",
