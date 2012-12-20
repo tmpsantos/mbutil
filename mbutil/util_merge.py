@@ -128,18 +128,21 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
     total_tiles = 0
     if min_timestamp > 0 and max_timestamp > 0:
-        total_tiles = cur1.execute("""SELECT count(zoom_level) FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?""",
+        total_tiles = cur2.execute("""SELECT count(zoom_level) FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?""",
             (min_zoom, max_zoom, min_timestamp, max_timestamp)).fetchone()[0]
     elif min_timestamp > 0:
-        total_tiles = cur1.execute("""SELECT count(zoom_level) FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at>?""",
+        total_tiles = cur2.execute("""SELECT count(zoom_level) FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>?""",
             (min_zoom, max_zoom, min_timestamp)).fetchone()[0]
     elif max_timestamp > 0:
-        total_tiles = cur1.execute("""SELECT count(zoom_level) FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at<?""",
+        total_tiles = cur2.execute("""SELECT count(zoom_level) FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at<?""",
             (min_zoom, max_zoom, max_timestamp)).fetchone()[0]
     else:
-        total_tiles = cur1.execute("""SELECT count(zoom_level) FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
+        total_tiles = cur2.execute("""SELECT count(zoom_level) FROM map WHERE zoom_level>=? AND zoom_level<=?""",
             (min_zoom, max_zoom)).fetchone()[0]
 
+    if total_tiles == 0:
+        sys.stderr.write('No tiles to merge, exiting...\n')
+        sys.exit(1)
 
     logger.debug("%d tiles to merge" % (total_tiles))
     if print_progress:
