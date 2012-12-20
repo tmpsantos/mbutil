@@ -9,7 +9,7 @@
 import logging, os, sys
 from optparse import OptionParser, OptionGroup
 
-from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database_file, compact_mbtiles, check_mbtiles, test_mbtiles, execute_commands_on_mbtiles, convert_string
+from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database_file, compact_mbtiles, check_mbtiles, test_mbtiles, fill_mbtiles, execute_commands_on_mbtiles, convert_string
 
 if __name__ == '__main__':
 
@@ -33,6 +33,9 @@ if __name__ == '__main__':
 
     Merge two or more mbtiles files (receiver will be the first file):
     $ mb-util --merge receiver.mbtiles file1.mbtiles [file2.mbtiles ...]
+
+    Fill a mbtiles database with a given tile image
+    $ mb-util --fill --min-zoom=7 --max-zoom=12 world.mbtiles transparent.png
 
     Check if a mbtiles file contains all tiles at a specific zoom level:
     $ mb-util --check --zoom=7 world.mbtiles
@@ -77,6 +80,11 @@ if __name__ == '__main__':
     group.add_option("--test",
         dest='test', action="store_true",
         help='''Test every tile with the given command, print the tile coordinate if the command returns anything non-zero.''',
+        default=False)
+
+    group.add_option("--fill",
+        dest='fill', action="store_true",
+        help='''Fill a mbtiles database with transparent tiles where it doesn\'t already contain tiles. Only usefull with --min-zoom/--max-zoom and --tile-bbox/--bbox.''',
         default=False)
 
     group.add_option("--compact",
@@ -125,6 +133,14 @@ if __name__ == '__main__':
         help='''Maximum numerical timestamp for --export/--merge.''',
         type="long", default=0)
 
+    group.add_option('--bbox', dest='bbox',
+        help='''Bounding box in coordinates 'left,bottom,right,top' (10.195312,47.546872,10.239258,47.576526)''',
+        type='string', default=None)
+
+    group.add_option('--tile-bbox', dest='tile_bbox',
+        help='''Bounding box in tile coordinates 'left,bottom,right,top' (10,10,20,20). Can only be used with --zoom.''',
+        type='string', default=None)
+
     group.add_option("--no-overwrite",
         action="store_true", dest="no_overwrite", default=False,
         help='''don't overwrite existing tiles during --merge/--import/--export.''')
@@ -163,7 +179,7 @@ if __name__ == '__main__':
 
     group.add_option('--tmp-dir',
         dest='tmp_dir', type="string", default=None,
-        help='''Temporary directory to use for --execute.''')
+        help='''Temporary directory to use for --execute (e.g. /dev/shm).''')
 
     group.add_option("--vacuum",
         action="store_false", dest="skip_vacuum", default=True,
@@ -264,6 +280,18 @@ if __name__ == '__main__':
 
         sys.stderr.write("No command given, don't know what to do. Exiting...")
         sys.exit(0)
+
+    if len(args) == 2:
+        if options.fill:
+            if not os.path.isfile(args[0]):
+                sys.stderr.write('The mbtiles database to fill must exist.\n')
+                sys.exit(1)
+            if not os.path.isfile(args[1]):
+                sys.stderr.write('The tile image file must exist.\n')
+                sys.exit(1)
+            fill_mbtiles(args[0], args[1], **options.__dict__)
+            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.wal_journal)
+            sys.exit(0)
 
     # merge mbtiles files
     if options.merge_tiles:
