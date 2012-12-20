@@ -46,8 +46,14 @@ Python installation (requires easy_install)
     Merge two or more mbtiles files (receiver will be the first file):
     $ mb-util --merge receiver.mbtiles file1.mbtiles [file2.mbtiles ...]
 
+    Fill a mbtiles database with a given tile image
+    $ mb-util --fill --min-zoom=7 --max-zoom=12 world.mbtiles transparent.png
+
     Check if a mbtiles file contains all tiles at a specific zoom level:
     $ mb-util --check --zoom=7 world.mbtiles
+
+    Test tiles with a command, print tile coordinates for non-zero return values
+    $ mb-util --test --execute "COMMAND ARGUMENTS" world.mbtiles
 
     Compact a mbtiles file by eliminating duplicate images:
     $ mb-util --compact world.mbtiles
@@ -74,6 +80,11 @@ Python installation (requires easy_install)
         -p, --process       Processes a mbtiles databases. Only usefull together
                             with one or more --execute.
         --check             Check the database for missing tiles.
+        --test              Test every tile with the given command, print the tile
+                            coordinate if the command returns anything non-zero.
+        --fill              Fill a mbtiles database with tiles where
+                            it doesn't already contain a tile. Only usefull with
+                            --min-zoom/--max-zoom and --tile-bbox/--bbox.
         --compact           Eliminate duplicate images to reduce mbtiles filesize.
         --create            Create an empty mbtiles database.
         --convert=CONVERT   Convert tile coordinates 'y/x/z' to bounding box
@@ -92,10 +103,23 @@ Python installation (requires easy_install)
         --max-zoom=MAX_ZOOM
                             Maximum zoom level for
                             --export/--import/--merge/--process/--check/--convert.
-        --zoom=ZOOM         Zoom level for --export/--import/--process/--check/--convert.
+        --zoom=ZOOM         Zoom level for
+                            --export/--import/--process/--check/--convert.
                             (Overrides --min-zoom and --max-zoom)
+        --min-timestamp=MIN_TIMESTAMP
+                            Minimum numerical timestamp for --export/--merge.
+        --max-timestamp=MAX_TIMESTAMP
+                            Maximum numerical timestamp for --export/--merge.
+        --bbox=BBOX         Bounding box in coordinates 'left,bottom,right,top'
+                            (10.195312,47.546872,10.239258,47.576526)
+        --tile-bbox=TILE_BBOX
+                            Bounding box in tile coordinates
+                            'left,bottom,right,top' (10,10,20,20). Can only be
+                            used with --zoom.
         --no-overwrite      don't overwrite existing tiles during
                             --merge/--import/--export.
+        --revert-test       For --test, print the tile coordinates if the command
+                            returns zero.
         --auto-commit       Enable auto commit for --merge/--import/--process.
         --synchronous-off   DANGEROUS!!! Set synchronous=OFF for the database
                             connections.
