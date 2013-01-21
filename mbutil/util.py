@@ -73,7 +73,7 @@ def compaction_prepare(cur):
         name TEXT,
         value TEXT)""")
     cur.execute("""
-        CREATE UNIQUE INDEX name ON metadata (name)""")
+        CREATE UNIQUE INDEX IF NOT EXISTS name ON metadata (name)""")
 
 
 def compaction_finalize(cur):
@@ -91,7 +91,7 @@ def compaction_finalize(cur):
         map JOIN images ON images.tile_id = map.tile_id""")
     cur.execute("""
         CREATE UNIQUE INDEX IF NOT EXISTS map_index ON map
-        (zoom_level, tile_column, tile_row, updated_at)""")
+        (zoom_level, tile_column, tile_row)""")
     cur.execute("""
           CREATE UNIQUE INDEX IF NOT EXISTS images_id ON images (tile_id)""")
 
@@ -101,8 +101,6 @@ def compaction_update(cur):
         cur.execute("""
             ALTER TABLE map ADD COLUMN
             updated_at INTEGER""")
-        # Will only drop and recreate the index the first time
-        cur.execute("""DROP INDEX map_index""")
     except sqlite3.OperationalError:
         pass
 
