@@ -142,7 +142,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
     if total_tiles == 0:
         sys.stderr.write('No tiles to merge, exiting...\n')
-        sys.exit(1)
+        sys.exit(0)
 
     logger.debug("%d tiles to merge" % (total_tiles))
     if print_progress:
