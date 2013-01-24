@@ -18,7 +18,9 @@ def test_tile(next_tile):
     result = os.system(command % (tile_file_path))
 
     if (revert_test == False and result != 0) or (revert_test == True and result == 0):
-        sys.stderr.write("/%s/%s/%s.%s\n" % (next_tile['tile_z'], next_tile['tile_x'], next_tile['tile_y'], next_tile['format']))
+        next_tile['result'] = "/%s/%s/%s.%s\n" % (next_tile['tile_z'], next_tile['tile_x'], next_tile['tile_y'], next_tile['format'])
+    else:
+        next_tile['result'] = None
 
     return next_tile
 
@@ -111,6 +113,9 @@ def test_mbtiles(mbtiles_file, **kwargs):
             processed_tiles = pool.map(test_tile, tiles_to_process)
 
             for next_tile in processed_tiles:
+                if next_tile['result']:
+                    sys.stderr.write(next_tile['result'])
+
                 tile_file_path = next_tile['filename']
                 os.remove(tile_file_path)
 
