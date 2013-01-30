@@ -13,9 +13,17 @@ def test_tile(next_tile):
         return next_tile
 
     command = command_list[0]
+    result  = 0
 
     # logger.debug("Executing command: %s" % command)
-    result = os.system(command % (tile_file_path))
+
+    # Common shortcuts
+    if command == "false" or command.startswith("false "):
+        result = 1
+    elif command == "true" or command.startswith("true "):
+        result = 0
+    else:
+        result = os.system(command % (tile_file_path))
 
     if (revert_test == False and result != 0) or (revert_test == True and result == 0):
         next_tile['result'] = "/%s/%s/%s.%s\n" % (next_tile['tile_z'], next_tile['tile_x'], next_tile['tile_y'], next_tile['format'])
