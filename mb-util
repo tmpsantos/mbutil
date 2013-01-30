@@ -9,7 +9,7 @@
 import logging, os, sys
 from optparse import OptionParser, OptionGroup
 
-from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database_file, compact_mbtiles, check_mbtiles, test_mbtiles, fill_mbtiles, execute_commands_on_mbtiles, convert_string
+from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database_file, compact_mbtiles, check_mbtiles, test_mbtiles, fill_mbtiles, execute_commands_on_mbtiles, convert_string, mbtiles_tilelist
 
 if __name__ == '__main__':
 
@@ -45,6 +45,9 @@ if __name__ == '__main__':
 
     Compact a mbtiles file by eliminating duplicate images:
     $ mb-util --compact world.mbtiles
+
+    Dumps a list of tiles to the console:
+    $ mb-util --tilelist --as-bboxes --zoom=11 world.mbtiles
 
     Convert tile coordinates and bounding boxes:
     $ mb-util --convert="13/4328/2861"
@@ -96,6 +99,10 @@ if __name__ == '__main__':
         action="store_true", dest="create", default=False,
         help='''Create an empty mbtiles database.''')
 
+    group.add_option("--tilelist",
+        action="store_true", dest="tilelist", default=False,
+        help='''Dumps a list of tiles to the console.''')
+
     group.add_option('--convert',
         dest='convert', type="string", default=None,
         help='''Convert tile coordinates 'y/x/z' to bounding box 'left,bottom,right,top' or vice versa.''')
@@ -110,7 +117,7 @@ if __name__ == '__main__':
         help='''Commands to execute for each tile image. %s will be replaced with the file name. This argument may be repeated several times and can be used together with --import/--export/--merge/--compact/--process.''')
 
     group.add_option('--flip-y', dest='flip_y',
-        help='''Flip the y tile coordinate during --export/--import/--merge/--convert.''',
+        help='''Flip the y tile coordinate during --export/--import/--merge/--convert/--tilelist.''',
         action="store_true", default=False)
 
     group.add_option('--min-zoom', dest='min_zoom',
@@ -148,6 +155,10 @@ if __name__ == '__main__':
     group.add_option("--revert-test",
         action="store_true", dest="revert_test", default=False,
         help='''For --test, print the tile coordinates if the command returns zero.''')
+
+    group.add_option("--as-bboxes",
+        action="store_true", dest="as_bboxes", default=False,
+        help='''For --tilelist, print the bounding boxes for tiles.''')
 
     group.add_option("--auto-commit",
         action="store_true", dest="auto_commit", default=False,
@@ -268,6 +279,13 @@ if __name__ == '__main__':
                 sys.stderr.write('Need exactly one command to execute for each tile.\n')
                 sys.exit(1)
             test_mbtiles(args[0], **options.__dict__)
+            sys.exit(0)
+
+        if options.tilelist:
+            if not os.path.isfile(args[0]):
+                sys.stderr.write('The mbtiles database to test must exist.\n')
+                sys.exit(1)
+            mbtiles_tilelist(args[0], **options.__dict__)
             sys.exit(0)
 
         # Create an empty mbtiles db?

@@ -59,4 +59,6 @@ def check_mbtiles(mbtiles_file, **kwargs):
             logger.error(current_tile)
 
 
+    con.close()
+
     return result
