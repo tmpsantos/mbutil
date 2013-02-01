@@ -24,7 +24,7 @@ def check_mbtiles(mbtiles_file, **kwargs):
 
     logger.debug("Loading zoom levels")
 
-    zoom_levels = [int(x[0]) for x in cur.execute("SELECT distinct(zoom_level) FROM tiles").fetchall()]
+    zoom_levels = [int(x[0]) for x in cur.execute("SELECT distinct(zoom_level) FROM map").fetchall()]
     missing_tiles = []
 
     for current_zoom_level in zoom_levels:
