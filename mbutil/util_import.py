@@ -74,6 +74,8 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     existing_tiles = {}
 
     if no_overwrite:
+        logger.info("Checking existing tiles")
+        
         tiles = cur.execute("""SELECT zoom_level, tile_column, tile_row FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
             (min_zoom, max_zoom))
 

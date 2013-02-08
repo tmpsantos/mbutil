@@ -23,14 +23,7 @@ def mbtiles_tilelist(mbtiles_file, **kwargs):
     cur = con.cursor()
     optimize_connection(cur)
 
-    logger.debug("Loading zoom levels")
-
-    zoom_levels = [int(x[0]) for x in cur.execute("SELECT distinct(zoom_level) FROM tiles").fetchall()]
-
-    for current_zoom_level in zoom_levels:
-        if current_zoom_level < min_zoom or current_zoom_level > max_zoom:
-            continue
-
+    for current_zoom_level in range(min_zoom, max_zoom+1):
         logger.debug("Starting zoom level %d" % (current_zoom_level))
 
         tiles = cur.execute("""SELECT tile_column, tile_row FROM map WHERE zoom_level = ?""",
