@@ -9,7 +9,7 @@
 import logging, os, sys
 from optparse import OptionParser, OptionGroup
 
-from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database_file, compact_mbtiles, check_mbtiles, test_mbtiles, fill_mbtiles, execute_commands_on_mbtiles, convert_string, mbtiles_tilelist
+from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database_file, compact_mbtiles, check_mbtiles, test_mbtiles, fill_mbtiles, execute_commands_on_mbtiles, convert_string, mbtiles_tilelist, expire_mbtiles
 
 if __name__ == '__main__':
 
@@ -33,6 +33,9 @@ if __name__ == '__main__':
 
     Merge two or more mbtiles files (receiver will be the first file):
     $ mb-util --merge receiver.mbtiles file1.mbtiles [file2.mbtiles ...]
+
+    Remove tiles older than 30 days from the database:
+    $ mb-util --expire=30 world.mbtiles
 
     Fill a mbtiles database with a given tile image
     $ mb-util --fill --min-zoom=7 --max-zoom=12 world.mbtiles transparent.png
@@ -74,6 +77,10 @@ if __name__ == '__main__':
     group.add_option("-p", "--process",
         action="store_true", dest="process", default=False,
         help='''Processes a mbtiles databases. Only usefull together with one or more --execute.''')
+
+    group.add_option("--expire", metavar="DAYS",
+        dest="expire", type="int", default="0",
+        help='''Remove tiles older than DAYS from the database.''')
 
     group.add_option("--check",
         dest='check', action="store_true",
@@ -288,6 +295,14 @@ if __name__ == '__main__':
             mbtiles_tilelist(args[0], **options.__dict__)
             sys.exit(0)
 
+        if options.expire > 0:
+            if not os.path.isfile(args[0]):
+                sys.stderr.write('The mbtiles database to test must exist.\n')
+                sys.exit(1)
+            expire_mbtiles(args[0], **options.__dict__)
+            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.wal_journal)
+            sys.exit(0)
+
         # Create an empty mbtiles db?
         if options.create:
             if os.path.exists(args[0]):
@@ -296,7 +311,7 @@ if __name__ == '__main__':
             mbtiles_create(args[0], **options.__dict__)
             sys.exit(0)
 
-        sys.stderr.write("No command given, don't know what to do. Exiting...")
+        sys.stderr.write("No command given, don't know what to do. Exiting...\n")
         sys.exit(0)
 
     if len(args) == 2:
