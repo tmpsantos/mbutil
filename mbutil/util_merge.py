@@ -296,6 +296,8 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
             tiles = cur2.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_id, images.tile_data FROM images, map WHERE map.zoom_level>=? AND map.zoom_level<=? AND images.tile_id=map.tile_id""",
                 (min_zoom, max_zoom))
 
+        tmp_row_list = []
+
         t = tiles.fetchone()
         while t:
             z = t[0]
@@ -328,9 +330,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
                 cur1.execute("""REPLACE INTO images (tile_id, tile_data) VALUES (?, ?)""",
                     (new_tile_id, sqlite3.Binary(tile_data)))
 
-
-            cur1.execute("""REPLACE INTO map (zoom_level, tile_column, tile_row, tile_id, updated_at) VALUES (?, ?, ?, ?, ?)""",
-                (z, x, y, new_tile_id, int(time.time())))
+            tmp_row_list.append( (z, x, y, new_tile_id, int(time.time())) )
 
             count = count + 1
             if (count % 100) == 0:
@@ -339,7 +339,15 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
                     sys.stdout.write("\r%d tiles merged (%.1f%% @ %.1f tiles/sec)" % (count, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
                     sys.stdout.flush()
 
+            if len(tmp_row_list) > 250:
+                cur1.executemany("""REPLACE INTO map (zoom_level, tile_column, tile_row, tile_id, updated_at) VALUES (?, ?, ?, ?, ?)""", tmp_row_list)
+                tmp_row_list = []
+
             t = tiles.fetchone()
+
+        # Push the remaining rows to the database
+        if len(tmp_row_list) > 0:
+            cur1.executemany("""REPLACE INTO map (zoom_level, tile_column, tile_row, tile_id, updated_at) VALUES (?, ?, ?, ?, ?)""", tmp_row_list)
 
 
     # merge an uncompacted database (--merge)
