@@ -337,7 +337,8 @@ if __name__ == '__main__':
             if not options.quiet:
                 logging.info("%d: Merging %s" % (n, other_mbtiles))
             if not os.path.isfile(other_mbtiles):
-                continue
+                sys.stderr.write("Missing file %s" % (other_mbtiles))
+                sys.exit(1)
             merge_mbtiles(receiving_mbtiles, other_mbtiles, **options.__dict__)
 
         optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.wal_journal)
