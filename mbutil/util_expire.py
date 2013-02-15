@@ -9,9 +9,9 @@ def expire_mbtiles(mbtiles_file, **kwargs):
     logger.info("Expiring tiles from database %s" % (mbtiles_file))
 
 
-    wal_journal = kwargs.get('wal_journal', False)
+    journal_mode    = kwargs.get('journal_mode', 'wal')
     synchronous_off = kwargs.get('synchronous_off', False)
-    expire_days = kwargs.get('expire', 0)
+    expire_days     = kwargs.get('expire', 0)
 
     if expire_days == 0:
         return
@@ -19,7 +19,7 @@ def expire_mbtiles(mbtiles_file, **kwargs):
 
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
-    optimize_connection(cur, wal_journal, synchronous_off)
+    optimize_connection(cur, journal_mode, synchronous_off)
 
 
     expire_timestamp = (int(time.time()) - (int(expire_days) * 86400))

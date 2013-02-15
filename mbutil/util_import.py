@@ -12,11 +12,13 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     import_into_existing_mbtiles = os.path.isfile(mbtiles_file)
     existing_mbtiles_is_compacted = True
 
-    no_overwrite = kwargs.get('no_overwrite', False)
-    auto_commit  = kwargs.get('auto_commit', False)
-    wal_journal  = kwargs.get('wal_journal', False)
+    no_overwrite  = kwargs.get('no_overwrite', False)
+    auto_commit   = kwargs.get('auto_commit', False)
+    journal_mode  = kwargs.get('journal_mode', 'wal')
+
     synchronous_off = kwargs.get('synchronous_off', False)
     print_progress  = kwargs.get('progress', False)
+
     zoom     = kwargs.get('zoom', -1)
     min_zoom = kwargs.get('min_zoom', 0)
     max_zoom = kwargs.get('max_zoom', 18)
@@ -31,7 +33,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
     con = mbtiles_connect(mbtiles_file, auto_commit)
     cur = con.cursor()
-    optimize_connection(cur, wal_journal, synchronous_off, False)
+    optimize_connection(cur, journal_mode, synchronous_off, False)
 
 
     if import_into_existing_mbtiles:

@@ -16,6 +16,10 @@ def fill_mbtiles(mbtiles_file, image_filename, **kwargs):
     bbox      = kwargs.get('bbox', None)
     tile_bbox = kwargs.get('tile_bbox', None)
 
+    journal_mode    = kwargs.get('journal_mode', 'wal')
+    synchronous_off = kwargs.get('synchronous_off', False)
+
+
     if zoom >= 0:
         min_zoom = max_zoom = zoom
     elif min_zoom == max_zoom:
@@ -31,7 +35,7 @@ def fill_mbtiles(mbtiles_file, image_filename, **kwargs):
 
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
-    optimize_connection(cur)
+    optimize_connection(cur, journal_mode, synchronous_off)
 
 
     existing_mbtiles_is_compacted = (con.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)

@@ -41,15 +41,19 @@ def test_mbtiles(mbtiles_file, **kwargs):
     min_zoom = kwargs.get('min_zoom', 0)
     max_zoom = kwargs.get('max_zoom', 18)
     tmp_dir  = kwargs.get('tmp_dir', None)
-    revert_test = kwargs.get('revert_test', False)
+
+    revert_test  = kwargs.get('revert_test', False)
+    journal_mode = kwargs.get('journal_mode', 'wal')
+
     default_pool_size = kwargs.get('poolsize', -1)
+
 
     if zoom >= 0:
         min_zoom = max_zoom = zoom
 
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
-    optimize_connection(cur)
+    optimize_connection(cur, journal_mode)
 
     zoom_levels = [int(x[0]) for x in cur.execute("SELECT distinct(zoom_level) FROM tiles").fetchall()]
     max_rowid   = (con.execute("select max(rowid) from map").fetchone()[0])

@@ -35,19 +35,17 @@ def mbtiles_connect(mbtiles_file, auto_commit=False):
         sys.exit(1)
 
 
-def optimize_connection(cur, wal_journal=False, synchronous_off=False, exclusive_lock=True):
+def optimize_connection(cur, journal_mode='wal', synchronous_off=False, exclusive_lock=True):
     cur.execute("PRAGMA cache_size = 100000")
     cur.execute("PRAGMA temp_store = memory")
     cur.execute("PRAGMA count_changes = OFF")
     cur.execute("PRAGMA synchronous = NORMAL")
 
-    if wal_journal:
-        cur.execute("PRAGMA journal_mode = WAL")
-    else:
-        try:
-            cur.execute("PRAGMA journal_mode = DELETE")
-        except sqlite3.OperationalError:
-            pass
+    try:
+        cur.execute("PRAGMA journal_mode = ?", (journal_mode, ))
+    except sqlite3.OperationalError:
+        logger.error("Could not set journal_mode=%s" % (journal_mode))
+        pass
 
     if exclusive_lock:
         cur.execute("PRAGMA locking_mode = EXCLUSIVE")
@@ -127,10 +125,10 @@ def optimize_database(cur, skip_analyze, skip_vacuum):
         cur.execute("""VACUUM""")
 
 
-def optimize_database_file(mbtiles_file, skip_analyze, skip_vacuum, wal_journal=False):
+def optimize_database_file(mbtiles_file, skip_analyze, skip_vacuum, journal_mode='wal'):
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
-    optimize_connection(cur, wal_journal)
+    optimize_connection(cur, journal_mode)
     optimize_database(cur, skip_analyze, skip_vacuum)
     con.commit()
     con.close()

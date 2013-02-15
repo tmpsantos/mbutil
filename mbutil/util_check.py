@@ -15,12 +15,15 @@ def check_mbtiles(mbtiles_file, **kwargs):
     min_zoom = kwargs.get('min_zoom', 0)
     max_zoom = kwargs.get('max_zoom', 18)
 
+    journal_mode = kwargs.get('journal_mode', 'wal')
+
+
     if zoom >= 0:
         min_zoom = max_zoom = zoom
 
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
-    optimize_connection(cur)
+    optimize_connection(cur, journal_mode)
 
     logger.debug("Loading zoom levels")
 

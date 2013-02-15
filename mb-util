@@ -177,7 +177,11 @@ if __name__ == '__main__':
 
     group.add_option("--use-wal-journal",
         action="store_true", dest="wal_journal", default=False,
-        help='''Use journal_mode=WAL for the databases (default is DELETE).''')
+        help='''Use journal_mode=WAL for the databases. [DEPRECATED]''')
+
+    group.add_option("--journal_mode",
+        type="string", default="wal",
+        help='''SQLite journal mode to use (wal|delete|memory|truncate|persist|off). Defaults to 'wal'.''')
 
     group.add_option("--check-before-merge",
         action="store_true", dest="check_before_merge", default=False,
@@ -240,9 +244,14 @@ if __name__ == '__main__':
     logger = logging.getLogger(__name__)
 
     if options.wal_journal:
-        logger.debug("Using journal_mode=WAL")
-    else:
-        logger.debug("Using journal_mode=DELETE")
+        options.journal_mode = "wal";
+
+    options.journal_mode = options.journal_mode.lower()
+
+    if options.journal_mode not in [ 'wal', 'delete', 'memory', 'truncate', 'persist', 'off' ]:
+        options.journal_mode = 'wal'
+
+    logger.debug("Using journal_mode=%s" % (options.journal_mode))
 
     if options.auto_commit:
         logger.debug("Using auto commit (isolation_level = None)")
@@ -267,7 +276,7 @@ if __name__ == '__main__':
                 sys.stderr.write('The mbtiles database to process must exist.\n')
                 sys.exit(1)
             execute_commands_on_mbtiles(args[0], **options.__dict__)
-            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.wal_journal)
+            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.journal_mode)
             sys.exit(0)
 
         if options.compact:
@@ -275,7 +284,7 @@ if __name__ == '__main__':
                 sys.stderr.write('The mbtiles database to compact must exist.\n')
                 sys.exit(1)
             compact_mbtiles(args[0], **options.__dict__)
-            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.wal_journal)
+            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.journal_mode)
             sys.exit(0)
 
         if options.test:
@@ -300,7 +309,7 @@ if __name__ == '__main__':
                 sys.stderr.write('The mbtiles database to test must exist.\n')
                 sys.exit(1)
             expire_mbtiles(args[0], **options.__dict__)
-            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.wal_journal)
+            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.journal_mode)
             sys.exit(0)
 
         # Create an empty mbtiles db?
@@ -323,7 +332,7 @@ if __name__ == '__main__':
                 sys.stderr.write('The tile image file must exist.\n')
                 sys.exit(1)
             fill_mbtiles(args[0], args[1], **options.__dict__)
-            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.wal_journal)
+            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.journal_mode)
             sys.exit(0)
 
     # merge mbtiles files
@@ -341,7 +350,7 @@ if __name__ == '__main__':
                 sys.exit(1)
             merge_mbtiles(receiving_mbtiles, other_mbtiles, **options.__dict__)
 
-        optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.wal_journal)
+        optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.journal_mode)
         sys.exit(0)
 
     # export from mbtiles to disk
@@ -362,5 +371,5 @@ if __name__ == '__main__':
 
         directory_path, mbtiles_file = args
         disk_to_mbtiles(directory_path, mbtiles_file, **options.__dict__)
-        optimize_database_file(mbtiles_file, options.skip_analyze, options.skip_vacuum, options.wal_journal)
+        optimize_database_file(mbtiles_file, options.skip_analyze, options.skip_vacuum, options.journal_mode)
         sys.exit(0)

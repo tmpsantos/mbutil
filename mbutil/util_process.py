@@ -13,17 +13,19 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
     if kwargs.get('command_list') == None or len(kwargs['command_list']) == 0:
         return
 
-    auto_commit = kwargs.get('auto_commit', False)
-    wal_journal = kwargs.get('wal_journal', False)
-    zoom        = kwargs.get('zoom', -1)
-    min_zoom    = kwargs.get('min_zoom', 0)
-    max_zoom    = kwargs.get('max_zoom', 18)
-    tmp_dir     = kwargs.get('tmp_dir', None)
+    auto_commit  = kwargs.get('auto_commit', False)
+    journal_mode = kwargs.get('journal_mode', 'wal')
+    zoom         = kwargs.get('zoom', -1)
+    min_zoom     = kwargs.get('min_zoom', 0)
+    max_zoom     = kwargs.get('max_zoom', 18)
+    tmp_dir      = kwargs.get('tmp_dir', None)
+
     default_pool_size = kwargs.get('poolsize', -1)
     synchronous_off   = kwargs.get('synchronous_off', False)
     print_progress    = kwargs.get('progress', False)
     min_timestamp     = kwargs.get('min_timestamp', 0)
     max_timestamp     = kwargs.get('max_timestamp', 0)
+
     delete_vanished_tiles = kwargs.get('delete_vanished_tiles', False)
 
     if tmp_dir and not os.path.isdir(tmp_dir):
@@ -35,7 +37,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
     con = mbtiles_connect(mbtiles_file, auto_commit)
     cur = con.cursor()
-    optimize_connection(cur, wal_journal, synchronous_off)
+    optimize_connection(cur, journal_mode, synchronous_off)
 
 
     existing_mbtiles_is_compacted = (con.execute("select count(name) from sqlite_master where type='table' AND name='images';").fetchone()[0] > 0)

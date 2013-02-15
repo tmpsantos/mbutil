@@ -16,12 +16,15 @@ def mbtiles_tilelist(mbtiles_file, **kwargs):
     min_zoom  = kwargs.get('min_zoom', 0)
     max_zoom  = kwargs.get('max_zoom', 18)
 
+    journal_mode = kwargs.get('journal_mode', 'wal')
+
+
     if zoom >= 0:
         min_zoom = max_zoom = zoom
 
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()
-    optimize_connection(cur)
+    optimize_connection(cur, journal_mode)
 
     for current_zoom_level in range(min_zoom, max_zoom+1):
         logger.debug("Starting zoom level %d" % (current_zoom_level))

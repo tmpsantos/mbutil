@@ -18,7 +18,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     tmp_dir         = kwargs.get('tmp_dir', None)
     no_overwrite    = kwargs.get('no_overwrite', False)
     auto_commit     = kwargs.get('auto_commit', False)
-    wal_journal     = kwargs.get('wal_journal', False)
+    journal_mode    = kwargs.get('journal_mode', 'wal')
     synchronous_off = kwargs.get('synchronous_off', False)
 
     min_timestamp = kwargs.get('min_timestamp', 0)
@@ -43,7 +43,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
     con1 = mbtiles_connect(mbtiles_file1, auto_commit)
     cur1 = con1.cursor()
-    optimize_connection(cur1, wal_journal, synchronous_off, False)
+    optimize_connection(cur1, journal_mode, synchronous_off, False)
 
     con2 = mbtiles_connect(mbtiles_file2)
     cur2 = con2.cursor()
