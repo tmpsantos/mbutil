@@ -34,8 +34,6 @@ def test_tile(next_tile):
 
 
 def test_mbtiles(mbtiles_file, **kwargs):
-    logger.info("Testing database %s" % (mbtiles_file))
-
 
     zoom     = kwargs.get('zoom', -1)
     min_zoom = kwargs.get('min_zoom', 0)
@@ -47,9 +45,19 @@ def test_mbtiles(mbtiles_file, **kwargs):
 
     default_pool_size = kwargs.get('poolsize', -1)
 
-
     if zoom >= 0:
         min_zoom = max_zoom = zoom
+
+
+    zoom_level_string = None
+
+    if min_zoom == max_zoom:
+        zoom_level_string = "zoom level %d" % (min_zoom)
+    else:
+        zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
+
+    logger.info("Testing database %s (%s)" % (mbtiles_file, zoom_level_string))
+
 
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()

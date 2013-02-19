@@ -6,8 +6,6 @@ logger = logging.getLogger(__name__)
 
 
 def fill_mbtiles(mbtiles_file, image_filename, **kwargs):
-    logger.info("Filling database %s" % (mbtiles_file))
-
 
     zoom      = kwargs.get('zoom', -1)
     min_zoom  = kwargs.get('min_zoom', 0)
@@ -32,6 +30,17 @@ def fill_mbtiles(mbtiles_file, image_filename, **kwargs):
     if tile_bbox == None and bbox == None:
         logger.info("Either --tile-bbox or --box must be given, exiting...")
         return
+
+
+    zoom_level_string = None
+
+    if min_zoom == max_zoom:
+        zoom_level_string = "zoom level %d" % (min_zoom)
+    else:
+        zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
+
+    logger.info("Filling database %s (%s)" % (mbtiles_file, zoom_level_string))
+
 
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()

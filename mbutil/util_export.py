@@ -6,8 +6,6 @@ logger = logging.getLogger(__name__)
 
 
 def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
-    logger.info("Exporting database to disk: %s --> %s" % (mbtiles_file, directory_path))
-
 
     delete_after_export = kwargs.get('delete_after_export', False)
     no_overwrite        = kwargs.get('no_overwrite', False)
@@ -27,6 +25,16 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
 
     if zoom >= 0:
         min_zoom = max_zoom = zoom
+
+
+    zoom_level_string = None
+
+    if min_zoom == max_zoom:
+        zoom_level_string = "zoom level %d" % (min_zoom)
+    else:
+        zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
+
+    logger.info("Exporting database to disk: %s --> %s (%s)" % (mbtiles_file, directory_path, zoom_level_string))
 
 
     con = mbtiles_connect(mbtiles_file)

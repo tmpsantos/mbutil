@@ -6,10 +6,8 @@ logger = logging.getLogger(__name__)
 
 
 def check_mbtiles(mbtiles_file, **kwargs):
-    logger.info("Checking database %s" % (mbtiles_file))
 
     result = True
-
 
     zoom     = kwargs.get('zoom', -1)
     min_zoom = kwargs.get('min_zoom', 0)
@@ -17,9 +15,19 @@ def check_mbtiles(mbtiles_file, **kwargs):
 
     journal_mode = kwargs.get('journal_mode', 'wal')
 
-
     if zoom >= 0:
         min_zoom = max_zoom = zoom
+
+
+    zoom_level_string = None
+
+    if min_zoom == max_zoom:
+        zoom_level_string = "zoom level %d" % (min_zoom)
+    else:
+        zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
+
+    logger.info("Checking database %s (%s)" % (mbtiles_file, zoom_level_string))
+
 
     con = mbtiles_connect(mbtiles_file)
     cur = con.cursor()

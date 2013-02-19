@@ -7,8 +7,6 @@ logger = logging.getLogger(__name__)
 
 
 def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
-    logger.info("Executing commands on database %s" % (mbtiles_file))
-
 
     if kwargs.get('command_list') == None or len(kwargs['command_list']) == 0:
         return
@@ -33,6 +31,16 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
 
     if zoom >= 0:
         min_zoom = max_zoom = zoom
+
+
+    zoom_level_string = None
+
+    if min_zoom == max_zoom:
+        zoom_level_string = "zoom level %d" % (min_zoom)
+    else:
+        zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
+
+    logger.info("Executing commands on database %s (%s)" % (mbtiles_file, zoom_level_string))
 
 
     con = mbtiles_connect(mbtiles_file, auto_commit)

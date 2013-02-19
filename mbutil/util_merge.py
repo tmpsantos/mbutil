@@ -8,8 +8,6 @@ logger = logging.getLogger(__name__)
 
 
 def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
-    logger.info("Merging databases: %s --> %s" % (mbtiles_file2, mbtiles_file1))
-
 
     zoom          = kwargs.get('zoom', -1)
     min_zoom      = kwargs.get('min_zoom', 0)
@@ -39,6 +37,16 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     if check_before_merge and not check_mbtiles(mbtiles_file2, **kwargs):
         sys.stderr.write("The pre-merge check on %s failed\n" % (mbtiles_file2))
         sys.exit(1)
+
+
+    zoom_level_string = None
+
+    if min_zoom == max_zoom:
+        zoom_level_string = "zoom level %d" % (min_zoom)
+    else:
+        zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
+
+    logger.info("Merging databases: %s --> %s (%s)" % (mbtiles_file2, mbtiles_file1, zoom_level_string))
 
 
     con1 = mbtiles_connect(mbtiles_file1, auto_commit)

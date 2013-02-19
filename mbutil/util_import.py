@@ -6,8 +6,6 @@ logger = logging.getLogger(__name__)
 
 
 def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
-    logger.info("Importing from disk to database: %s --> %s" % (directory_path, mbtiles_file))
-
 
     import_into_existing_mbtiles = os.path.isfile(mbtiles_file)
     existing_mbtiles_is_compacted = True
@@ -29,6 +27,16 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
     if zoom >= 0:
         min_zoom = max_zoom = zoom
+
+
+    zoom_level_string = None
+
+    if min_zoom == max_zoom:
+        zoom_level_string = "zoom level %d" % (min_zoom)
+    else:
+        zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
+
+    logger.info("Importing from disk to database: %s --> %s (%s)" % (directory_path, mbtiles_file, zoom_level_string))
 
 
     con = mbtiles_connect(mbtiles_file, auto_commit)
