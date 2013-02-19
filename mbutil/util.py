@@ -42,9 +42,9 @@ def optimize_connection(cur, journal_mode='wal', synchronous_off=False, exclusiv
     cur.execute("PRAGMA synchronous = NORMAL")
 
     try:
-        cur.execute("PRAGMA journal_mode = ?", (journal_mode, ))
+        cur.execute("PRAGMA journal_mode = '%s'" % (journal_mode))
     except sqlite3.OperationalError:
-        logger.error("Could not set journal_mode=%s" % (journal_mode))
+        logger.error("Could not set journal_mode='%s'" % (journal_mode))
         pass
 
     if exclusive_lock:
