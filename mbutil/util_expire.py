@@ -24,9 +24,9 @@ def expire_mbtiles(mbtiles_file, **kwargs):
 
     expire_timestamp = (int(time.time()) - (int(expire_days) * 86400))
 
-    cur.execute("""DELETE FROM map WHERE updated_at < ?""", (expire_timestamp, ))
+    logger.debug("Expiring tiles older than %s" % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(expire_timestamp))))
 
-    logger.debug("%d tiles removed" % (con.total_changes))
+    cur.execute("""DELETE FROM map WHERE updated_at < ?""", (expire_timestamp, ))
     
 
     con.commit()
