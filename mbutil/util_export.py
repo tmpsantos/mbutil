@@ -1,6 +1,6 @@
 import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile
 
-from util import mbtiles_connect, optimize_connection, optimize_database, compaction_update, execute_commands_on_tile, flip_y
+from util import mbtiles_connect, execute_commands_on_tile, flip_y, prettify_connect_string
 
 logger = logging.getLogger(__name__)
 
@@ -8,8 +8,10 @@ logger = logging.getLogger(__name__)
 def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
 
     delete_after_export = kwargs.get('delete_after_export', False)
-    no_overwrite        = kwargs.get('no_overwrite', False)
-    journal_mode        = kwargs.get('journal_mode', 'wal')
+
+    auto_commit     = kwargs.get('auto_commit', False)
+    journal_mode    = kwargs.get('journal_mode', 'wal')
+    synchronous_off = kwargs.get('synchronous_off', False)
 
     zoom     = kwargs.get('zoom', -1)
     min_zoom = kwargs.get('min_zoom', 0)
@@ -34,12 +36,10 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     else:
         zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
 
-    logger.info("Exporting database to disk: %s --> %s (%s)" % (mbtiles_file, directory_path, zoom_level_string))
+    logger.info("Exporting %s --> path:'%s' (%s)" % (prettify_connect_string(mbtiles_file), directory_path, zoom_level_string))
 
 
-    con = mbtiles_connect(mbtiles_file)
-    cur = con.cursor()
-    optimize_connection(cur, journal_mode)
+    con = mbtiles_connect(mbtiles_file, auto_commit, journal_mode, synchronous_off, False, True)
 
 
     if not os.path.isdir(directory_path):
@@ -49,37 +49,21 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         os.makedirs(base_path)
 
 
-    metadata = dict(con.execute('SELECT name, value FROM metadata').fetchall())
+    metadata = con.metadata()
     json.dump(metadata, open(os.path.join(directory_path, 'metadata.json'), 'w'), indent=4)
 
     count = 0
     start_time = time.time()
     image_format = metadata.get('format', 'png')
-    sending_mbtiles_is_compacted = (con.execute("SELECT count(name) FROM sqlite_master WHERE type='table' AND name='images'").fetchone()[0] > 0)
-
-    total_tiles = 0
-    if min_timestamp > 0 and max_timestamp > 0:
-        total_tiles = con.execute("""SELECT count(zoom_level) FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?""",
-            (min_zoom, max_zoom, min_timestamp, max_timestamp)).fetchone()[0]
-    elif min_timestamp > 0:
-        total_tiles = con.execute("""SELECT count(zoom_level) FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>?""",
-            (min_zoom, max_zoom, min_timestamp)).fetchone()[0]
-    elif max_timestamp > 0:
-        total_tiles = con.execute("""SELECT count(zoom_level) FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at<?""",
-            (min_zoom, max_zoom, max_timestamp)).fetchone()[0]
-    else:
-        total_tiles = con.execute("""SELECT count(zoom_level) FROM map WHERE zoom_level>=? AND zoom_level<=?""",
-            (min_zoom, max_zoom)).fetchone()[0]
-
+    sending_mbtiles_is_compacted = con.is_compacted()
 
     if not sending_mbtiles_is_compacted and (min_timestamp != 0 or max_timestamp != 0):
         con.close()
         sys.stderr.write('min-timestamp/max-timestamp can only be used with compacted databases.\n')
         sys.exit(1)
 
-    if sending_mbtiles_is_compacted:
-        compaction_update(cur)
 
+    total_tiles = con.tiles_count(min_zoom, max_zoom, min_timestamp, max_timestamp)
 
     logger.debug("%d tiles to export" % (total_tiles))
     if print_progress:
@@ -87,33 +71,19 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         sys.stdout.write("%d / %d tiles exported (0%% @ 0 tiles/sec)" % (count, total_tiles))
         sys.stdout.flush()
 
-    tiles = None
-    if min_timestamp > 0 and max_timestamp > 0:
-        tiles = cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?""",
-            (min_zoom, max_zoom, min_timestamp, max_timestamp))
-    elif min_timestamp > 0:
-        tiles = cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at>?""",
-            (min_zoom, max_zoom, min_timestamp))
-    elif max_timestamp > 0:
-        tiles = cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at<?""",
-            (min_zoom, max_zoom, max_timestamp))
-    else:
-        tiles = cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
-            (min_zoom, max_zoom))
 
-    t = tiles.fetchone()
-    while t:
+    for t in con.tiles(min_zoom, max_zoom, min_timestamp, max_timestamp):
         z = t[0]
         x = t[1]
         y = t[2]
-        tile_data = t[3]
+        tile_data = str(t[3])
 
         # Execute commands
         if kwargs.get('command_list'):
             tile_data = execute_commands_on_tile(kwargs['command_list'], image_format, tile_data, tmp_dir)
 
         if kwargs.get('flip_y', False) == True:
-          y = flip_y(z, y)
+            y = flip_y(z, y)
 
         tile_dir = os.path.join(base_path, str(z), str(x))
         if not os.path.isdir(tile_dir):
@@ -121,11 +91,9 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
 
         tile_file = os.path.join(tile_dir, '%s.%s' % (y, metadata.get('format', 'png')))
 
-        if no_overwrite == False or not os.path.isfile(tile_file):
-            f = open(tile_file, 'wb')
-            f.write(tile_data)
-            f.close()
-
+        f = open(tile_file, 'wb')
+        f.write(tile_data)
+        f.close()
 
         count = count + 1
         if (count % 100) == 0:
@@ -135,8 +103,6 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
                 sys.stdout.write("\r%d / %d tiles exported (%.1f%% @ %.1f tiles/sec)" %
                     (count, total_tiles, (float(count) / float(total_tiles)) * 100.0, count / (time.time() - start_time)))
                 sys.stdout.flush()
-
-        t = tiles.fetchone()
 
 
     if print_progress:
@@ -151,28 +117,8 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     if delete_after_export:
         logger.debug("WARNING: Removing exported tiles from %s" % (mbtiles_file))
 
-        if sending_mbtiles_is_compacted:
-            if min_timestamp > 0 and max_timestamp > 0:
-                cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?)""",
-                    (min_zoom, max_zoom, min_timestamp, max_timestamp))
-                cur.execute("""DELETE FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?""", (min_zoom, max_zoom, min_timestamp, max_timestamp))
-            elif min_timestamp > 0:
-                cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>?)""",
-                    (min_zoom, max_zoom, min_timestamp))
-                cur.execute("""DELETE FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>?""", (min_zoom, max_zoom, min_timestamp))
-            elif max_timestamp > 0:
-                cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at<?)""",
-                    (min_zoom, max_zoom, max_timestamp))
-                cur.execute("""DELETE FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at<?""", (min_zoom, max_zoom, max_timestamp))
-            else:
-                cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=?)""",
-                    (min_zoom, max_zoom))
-                cur.execute("""DELETE FROM map WHERE zoom_level>=? AND zoom_level<=?""", (min_zoom, max_zoom))
-        else:
-            cur.execute("""DELETE FROM tiles WHERE zoom_level>=? AND zoom_level<=?""", (min_zoom, max_zoom))
-
-        optimize_database(cur, kwargs.get('skip_analyze', False), kwargs.get('skip_vacuum', False))
-        con.commit()
+        con.delete_tiles(min_zoom, max_zoom, min_timestamp, max_timestamp)
+        con.optimize_database(kwargs.get('skip_analyze', False), kwargs.get('skip_vacuum', False))
 
 
     con.close()

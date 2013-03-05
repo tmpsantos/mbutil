@@ -1,4 +1,6 @@
-import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile, math
+import sqlite3, uuid, sys, logging, time, os, re, json, zlib, hashlib, tempfile, math
+
+from database import database_connect
 
 logger = logging.getLogger(__name__)
 
@@ -8,6 +10,10 @@ def flip_y(zoom, y):
 
 
 def coordinate_to_tile(longitude, latitude, zoom):
+    if latitude > 85.0511:
+        latitude = 85.0511
+    elif latitude < -85.0511:
+        latitude = -85.0511
     latitude_rad = math.radians(latitude)
     n = 2.0 ** zoom
     tileX = int((longitude + 180.0) / 360.0 * n)
@@ -23,125 +29,28 @@ def tile_to_coordinate(tileX, tileY, zoom):
     return (longitude, latitude)
 
 
-def mbtiles_connect(mbtiles_file, auto_commit=False):
-    try:
-        con = sqlite3.connect(mbtiles_file)
-        if auto_commit:
-            con.isolation_level = None
-        return con
-    except Exception, e:
-        logger.error("Could not connect to database")
-        logger.exception(e)
-        sys.exit(1)
+def mbtiles_connect(connect_string, auto_commit=False, journal_mode='wal', synchronous_off=False, exclusive_lock=False, check_if_exists=False):
+    return database_connect(connect_string, auto_commit, journal_mode, synchronous_off, exclusive_lock, check_if_exists)
 
 
-def optimize_connection(cur, journal_mode='wal', synchronous_off=False, exclusive_lock=True):
-    cur.execute("PRAGMA cache_size = 100000")
-    cur.execute("PRAGMA temp_store = memory")
-    cur.execute("PRAGMA count_changes = OFF")
-    cur.execute("PRAGMA synchronous = NORMAL")
-
-    try:
-        cur.execute("PRAGMA journal_mode = '%s'" % (journal_mode))
-    except sqlite3.OperationalError:
-        logger.error("Could not set journal_mode='%s'" % (journal_mode))
-        pass
-
-    if exclusive_lock:
-        cur.execute("PRAGMA locking_mode = EXCLUSIVE")
-
-    if synchronous_off:
-        cur.execute("PRAGMA synchronous = OFF")
-
-
-def compaction_prepare(cur):
-    cur.execute("PRAGMA page_size = 4096")
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS images (
-        tile_data BLOB,
-        tile_id VARCHAR(256))""")
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS map (
-        zoom_level INTEGER,
-        tile_column INTEGER,
-        tile_row INTEGER,
-        tile_id VARCHAR(256),
-        updated_at INTEGER)""")
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS metadata (
-        name TEXT,
-        value TEXT)""")
-    cur.execute("""
-        CREATE UNIQUE INDEX IF NOT EXISTS name ON metadata (name)""")
-
-
-def compaction_finalize(cur):
-    try:
-        cur.execute("""DROP VIEW tiles""")
-    except sqlite3.OperationalError:
-        pass
-    cur.execute("""
-        CREATE VIEW tiles AS
-        SELECT map.zoom_level AS zoom_level,
-        map.tile_column AS tile_column,
-        map.tile_row AS tile_row,
-        images.tile_data AS tile_data,
-        map.updated_at AS updated_at FROM
-        map JOIN images ON images.tile_id = map.tile_id""")
-    cur.execute("""
-        CREATE UNIQUE INDEX IF NOT EXISTS map_index ON map
-        (zoom_level, tile_column, tile_row)""")
-    cur.execute("""
-          CREATE UNIQUE INDEX IF NOT EXISTS images_id ON images (tile_id)""")
-
-
-def compaction_update(cur):
-    try:
-        cur.execute("""
-            ALTER TABLE map ADD COLUMN
-            updated_at INTEGER""")
-    except sqlite3.OperationalError:
-        pass
-
-    try:
-        compaction_finalize(cur)
-    except sqlite3.OperationalError:
-        pass
-
-
-def mbtiles_setup(cur):
-    compaction_prepare(cur)
-    compaction_finalize(cur)
-
-
-def optimize_database(cur, skip_analyze, skip_vacuum):
-    if not skip_analyze:
-        logger.info('analyzing db')
-        cur.execute("""ANALYZE""")
-
-    if not skip_vacuum:
-        logger.info('cleaning db')
-        cur.execute("""VACUUM""")
-
-
-def optimize_database_file(mbtiles_file, skip_analyze, skip_vacuum, journal_mode='wal'):
-    con = mbtiles_connect(mbtiles_file)
-    cur = con.cursor()
-    optimize_connection(cur, journal_mode)
-    optimize_database(cur, skip_analyze, skip_vacuum)
-    con.commit()
+def optimize_database(connect_string, auto_commit=False, skip_analyze=True, skip_vacuum=True, journal_mode='wal'):
+    con = mbtiles_connect(connect_string, auto_commit, skip_analyze, skip_vacuum, journal_mode)
+    con.optimize_database(skip_analyze, skip_vacuum)
     con.close()
 
 
-def mbtiles_create(mbtiles_file, **kwargs):
-    logger.info("Creating empty database %s" % (mbtiles_file))
-    con = mbtiles_connect(mbtiles_file)
-    cur = con.cursor()
-    optimize_connection(cur)
-    mbtiles_setup(cur)
-    con.commit()
+def mbtiles_create(connect_string, **kwargs):
+    logger.info("Creating empty database %s" % (connect_string))
+    con = mbtiles_connect(connect_string)
+    con.mbtiles_setup()
     con.close()
+
+
+def prettify_connect_string(connect_string):
+    if connect_string.endswith(".mbtiles"):
+        return "mbtiles:'%s'" % (os.path.basename(connect_string))
+    elif connect_string.find("dbname") >= 0:
+        return "postgres:'%s'" % (re.search('dbname=\'?([^\s\']+)\'?', connect_string).group(1))
 
 
 def execute_commands_on_tile(command_list, image_format, tile_data, tmp_dir=None):

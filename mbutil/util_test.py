@@ -1,6 +1,6 @@
 import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile, multiprocessing
 
-from util import mbtiles_connect, optimize_connection, optimize_database
+from util import mbtiles_connect, prettify_connect_string
 from multiprocessing import Pool
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,19 @@ def test_tile(next_tile):
     return next_tile
 
 
+def process_tiles(pool, tiles_to_process):
+    # Execute commands in parallel
+    # logger.debug("Starting multiprocessing...")
+    processed_tiles = pool.map(test_tile, tiles_to_process)
+
+    for next_tile in processed_tiles:
+        if next_tile['result']:
+            sys.stderr.write(next_tile['result'])
+
+        tile_file_path = next_tile['filename']
+        os.remove(tile_file_path)
+
+
 def test_mbtiles(mbtiles_file, **kwargs):
 
     zoom     = kwargs.get('zoom', -1)
@@ -40,8 +53,13 @@ def test_mbtiles(mbtiles_file, **kwargs):
     max_zoom = kwargs.get('max_zoom', 18)
     tmp_dir  = kwargs.get('tmp_dir', None)
 
-    revert_test  = kwargs.get('revert_test', False)
-    journal_mode = kwargs.get('journal_mode', 'wal')
+    min_timestamp    = kwargs.get('min_timestamp', 0)
+    max_timestamp    = kwargs.get('max_timestamp', 0)
+    revert_test     = kwargs.get('revert_test', False)
+
+    auto_commit     = kwargs.get('auto_commit', False)
+    journal_mode    = kwargs.get('journal_mode', 'wal')
+    synchronous_off = kwargs.get('synchronous_off', False)
 
     default_pool_size = kwargs.get('poolsize', -1)
 
@@ -56,22 +74,17 @@ def test_mbtiles(mbtiles_file, **kwargs):
     else:
         zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
 
-    logger.info("Testing database %s (%s)" % (mbtiles_file, zoom_level_string))
+    logger.info("Testing %s (%s)" % (prettify_connect_string(mbtiles_file), zoom_level_string))
 
 
-    con = mbtiles_connect(mbtiles_file)
-    cur = con.cursor()
-    optimize_connection(cur, journal_mode)
+    con = mbtiles_connect(mbtiles_file, auto_commit, journal_mode, synchronous_off, False, True)
 
-    zoom_levels = [int(x[0]) for x in cur.execute("SELECT distinct(zoom_level) FROM tiles").fetchall()]
-    max_rowid   = (con.execute("select max(rowid) from map").fetchone()[0])
 
-    chunk = 1000
     image_format = 'png'
-    try:
-        image_format = con.execute("select value from metadata where name='format';").fetchone()[0]
-    except:
-        pass
+
+    metadata = con.metadata()
+    if metadata.has_key('format'):
+        image_format = metadata['format']
 
 
     if default_pool_size < 1:
@@ -84,60 +97,40 @@ def test_mbtiles(mbtiles_file, **kwargs):
     multiprocessing.log_to_stderr(logger.level)
 
 
-    for current_zoom_level in zoom_levels:
-        if current_zoom_level < min_zoom or current_zoom_level > max_zoom:
+    chunk = 1000
+    tiles_to_process = []
+
+    for t in con.tiles(min_zoom, max_zoom, min_timestamp, max_timestamp):
+        tile_z = t[0]
+        tile_x = t[1]
+        tile_y = t[2]
+        tile_data = str(t[3])
+
+        tmp_file_fd, tmp_file_name = tempfile.mkstemp(suffix=".%s" % (image_format), prefix="tile_", dir=tmp_dir)
+        tmp_file = os.fdopen(tmp_file_fd, "w")
+        tmp_file.write(tile_data)
+        tmp_file.close()
+
+        tiles_to_process.append({
+            'tile_x' : tile_x,
+            'tile_y' : tile_y,
+            'tile_z' : tile_z,
+            'filename' : tmp_file_name,
+            'format' : image_format,
+            'revert_test' : revert_test,
+            'command_list' : kwargs.get('command_list', [])
+        })
+
+        if len(tiles_to_process) < chunk:
             continue
 
-        for i in range((max_rowid / chunk) + 1):
-            # logger.debug("Starting range %d-%d" % (i*chunk, (i+1)*chunk))
-            tiles = cur.execute("""select images.tile_id, images.tile_data, map.zoom_level, map.tile_column, map.tile_row
-                from map, images
-                where (map.rowid > ? and map.rowid <= ?)
-                and (map.zoom_level=?)
-                and (images.tile_id == map.tile_id)""",
-                ((i * chunk), ((i + 1) * chunk), current_zoom_level))
+        process_tiles(pool, tiles_to_process)
 
-            tiles_to_process = []
-
-            t = tiles.fetchone()
-
-            while t:
-                tile_data = t[1]
-                tile_z = t[2]
-                tile_x = t[3]
-                tile_y = t[4]
-
-                tmp_file_fd, tmp_file_name = tempfile.mkstemp(suffix=".%s" % (image_format), prefix="tile_", dir=tmp_dir)
-                tmp_file = os.fdopen(tmp_file_fd, "w")
-                tmp_file.write(tile_data)
-                tmp_file.close()
-
-                tiles_to_process.append({
-                    'tile_x' : tile_x,
-                    'tile_y' : tile_y,
-                    'tile_z' : tile_z,
-                    'filename' : tmp_file_name,
-                    'format' : image_format,
-                    'revert_test' : revert_test,
-                    'command_list' : kwargs.get('command_list', [])
-                })
-
-                t = tiles.fetchone()
+        tiles_to_process = []
 
 
-            if len(tiles_to_process) == 0:
-                continue
-
-            # Execute commands in parallel
-            # logger.debug("Starting multiprocessing...")
-            processed_tiles = pool.map(test_tile, tiles_to_process)
-
-            for next_tile in processed_tiles:
-                if next_tile['result']:
-                    sys.stderr.write(next_tile['result'])
-
-                tile_file_path = next_tile['filename']
-                os.remove(tile_file_path)
+    if len(tiles_to_process) > 0:
+        process_tiles(pool, tiles_to_process)
 
 
     pool.close()

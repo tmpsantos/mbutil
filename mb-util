@@ -9,7 +9,7 @@
 import logging, os, sys
 from optparse import OptionParser, OptionGroup
 
-from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database_file, compact_mbtiles, check_mbtiles, test_mbtiles, fill_mbtiles, execute_commands_on_mbtiles, convert_string, mbtiles_tilelist, expire_mbtiles
+from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database, check_mbtiles, test_mbtiles, fill_mbtiles, execute_commands_on_mbtiles, convert_string, mbtiles_tilelist, expire_mbtiles
 
 if __name__ == '__main__':
 
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     Remove tiles older than 30 days from the database:
     $ mb-util --expire=30 world.mbtiles
 
-    Fill a mbtiles database with a given tile image
+    Fill a database with a given tile image
     $ mb-util --fill --min-zoom=7 --max-zoom=12 world.mbtiles transparent.png
 
     Check if a mbtiles file contains all tiles at a specific zoom level:
@@ -45,9 +45,6 @@ if __name__ == '__main__':
 
     Test tiles with a command, print tile coordinates for non-zero return values
     $ mb-util --test --execute "COMMAND ARGUMENTS" world.mbtiles
-
-    Compact a mbtiles file by eliminating duplicate images:
-    $ mb-util --compact world.mbtiles
 
     Dumps a list of tiles to the console:
     $ mb-util --tilelist --as-bboxes --zoom=11 world.mbtiles
@@ -94,12 +91,7 @@ if __name__ == '__main__':
 
     group.add_option("--fill",
         dest='fill', action="store_true",
-        help='''Fill a mbtiles database with transparent tiles where it doesn\'t already contain tiles. Only usefull with --min-zoom/--max-zoom and --tile-bbox/--bbox.''',
-        default=False)
-
-    group.add_option("--compact",
-        dest='compact', action="store_true",
-        help='''Eliminate duplicate images to reduce mbtiles filesize.''',
+        help='''Fill a database with tile images where it doesn\'t already contain tiles. Only usefull with --min-zoom/--max-zoom and --tile-bbox/--bbox.''',
         default=False)
 
     group.add_option("--create",
@@ -140,11 +132,11 @@ if __name__ == '__main__':
         type='int', default=-1)
 
     group.add_option('--min-timestamp', dest='min_timestamp',
-        help='''Minimum numerical timestamp for --export/--merge.''',
+        help='''Minimum numerical timestamp for --export/--merge/--process/--test.''',
         type="long", default=0)
 
     group.add_option('--max-timestamp', dest='max_timestamp',
-        help='''Maximum numerical timestamp for --export/--merge.''',
+        help='''Maximum numerical timestamp for --export/--merge/--process/--test.''',
         type="long", default=0)
 
     group.add_option('--bbox', dest='bbox',
@@ -154,10 +146,6 @@ if __name__ == '__main__':
     group.add_option('--tile-bbox', dest='tile_bbox',
         help='''Bounding box in tile coordinates 'left,bottom,right,top' (10,10,20,20). Can only be used with --zoom.''',
         type='string', default=None)
-
-    group.add_option("--no-overwrite",
-        action="store_true", dest="no_overwrite", default=False,
-        help='''don't overwrite existing tiles during --merge/--import/--export.''')
 
     group.add_option("--revert-test",
         action="store_true", dest="revert_test", default=False,
@@ -169,15 +157,15 @@ if __name__ == '__main__':
 
     group.add_option("--auto-commit",
         action="store_true", dest="auto_commit", default=False,
-        help='''Enable auto commit for --merge/--import/--process.''')
+        help='''Enable auto commit.''')
 
     group.add_option("--synchronous-off",
         action="store_true", dest="synchronous_off", default=False,
-        help='''DANGEROUS!!! Set synchronous=OFF for the database connections.''')
+        help='''DANGEROUS!!! Set synchronous=OFF for SQLite database connections.''')
 
     group.add_option("--use-wal-journal",
         action="store_true", dest="wal_journal", default=False,
-        help='''Use journal_mode=WAL for the databases. [DEPRECATED]''')
+        help='''Use journal_mode=WAL for SQLite databases. [DEPRECATED]''')
 
     group.add_option("--journal_mode",
         type="string", default="wal",
@@ -185,7 +173,7 @@ if __name__ == '__main__':
 
     group.add_option("--check-before-merge",
         action="store_true", dest="check_before_merge", default=False,
-        help='''Runs some basic checks (like --check) on mbtiles before merging them.''')
+        help='''Runs some basic checks (like --check) on databases before merging them.''')
 
     group.add_option("--delete-after-export",
         action="store_true", dest="delete_after_export", default=False,
@@ -197,7 +185,7 @@ if __name__ == '__main__':
 
     group.add_option("--poolsize",
         type="int", default=-1,
-        help="""Pool size for processing tiles with --process/--merge. Default is to use a pool size equal to the number of cpus/cores.""")
+        help="""Pool size for processing tiles with --process/--merge. Default is to use a pool size equal to the number of cpu cores.""")
 
     group.add_option('--tmp-dir',
         dest='tmp_dir', type="string", default=None,
@@ -205,15 +193,15 @@ if __name__ == '__main__':
 
     group.add_option("--vacuum",
         action="store_false", dest="skip_vacuum", default=True,
-        help='''VACUUM the mbtiles database after --import/--merge/--process/--compact.''')
+        help='''VACUUM the database after --import/--merge/--process/--fill/--expire.''')
 
     group.add_option("--analyze",
         action="store_false", dest="skip_analyze", default=True,
-        help='''ANALYZE the mbtiles database after --import/--merge/--process/--compact.''')
+        help='''ANALYZE the database after --import/--merge/--process/--fill/--expire.''')
 
     group.add_option("--progress",
         action="store_true", dest="progress", default=False,
-        help='''Print progress updates and keep them on one line during --import/--merge/--export/--compact/--process.''')
+        help='''Print progress updates and keep them on one line.''')
 
     group.add_option("-q", "--quiet",
         action="store_true", dest="quiet", default=False,
@@ -266,33 +254,18 @@ if __name__ == '__main__':
     if len(args) == 1:
         # Check the mbtiles db?
         if options.check:
-            if not os.path.isfile(args[0]):
-                sys.stderr.write('The mbtiles database to check must exist.\n')
-                sys.exit(1)
             result = check_mbtiles(args[0], **options.__dict__)
             sys.exit(0) if result else sys.exit(1)
 
         # Execute commands on the tiles in the mbtiles db?
         if options.process:
-            if not os.path.isfile(args[0]):
-                sys.stderr.write('The mbtiles database to process must exist.\n')
+            if options.command_list == None:
+                sys.stderr.write('Need at least one command to execute for each tile.\n')
                 sys.exit(1)
             execute_commands_on_mbtiles(args[0], **options.__dict__)
-            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.journal_mode)
-            sys.exit(0)
-
-        if options.compact:
-            if not os.path.isfile(args[0]):
-                sys.stderr.write('The mbtiles database to compact must exist.\n')
-                sys.exit(1)
-            compact_mbtiles(args[0], **options.__dict__)
-            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.journal_mode)
             sys.exit(0)
 
         if options.test:
-            if not os.path.isfile(args[0]):
-                sys.stderr.write('The mbtiles database to test must exist.\n')
-                sys.exit(1)
             if options.command_list == None or len(options.command_list) != 1:
                 sys.stderr.write('Need exactly one command to execute for each tile.\n')
                 sys.exit(1)
@@ -300,25 +273,15 @@ if __name__ == '__main__':
             sys.exit(0)
 
         if options.tilelist:
-            if not os.path.isfile(args[0]):
-                sys.stderr.write('The mbtiles database to test must exist.\n')
-                sys.exit(1)
             mbtiles_tilelist(args[0], **options.__dict__)
             sys.exit(0)
 
         if options.expire > 0:
-            if not os.path.isfile(args[0]):
-                sys.stderr.write('The mbtiles database to test must exist.\n')
-                sys.exit(1)
             expire_mbtiles(args[0], **options.__dict__)
-            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.journal_mode)
             sys.exit(0)
 
         # Create an empty mbtiles db?
         if options.create:
-            if os.path.exists(args[0]):
-                sys.stderr.write('The mbtiles database to create must not exist yet.\n')
-                sys.exit(1)
             mbtiles_create(args[0], **options.__dict__)
             sys.exit(0)
 
@@ -327,40 +290,26 @@ if __name__ == '__main__':
 
     if len(args) == 2:
         if options.fill:
-            if not os.path.isfile(args[0]):
-                sys.stderr.write('The mbtiles database to fill must exist.\n')
-                sys.exit(1)
             if not os.path.isfile(args[1]):
                 sys.stderr.write('The tile image file must exist.\n')
                 sys.exit(1)
             fill_mbtiles(args[0], args[1], **options.__dict__)
-            optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.journal_mode)
             sys.exit(0)
 
     # merge mbtiles files
     if options.merge_tiles:
-        if not os.path.isfile(args[0]):
-            mbtiles_create(args[0], **options.__dict__)
-
         receiving_mbtiles = args[0]
         for n in range(1, len(args)):
             other_mbtiles = args[n]
             if not options.quiet:
                 logging.info("%d: Merging %s" % (n, other_mbtiles))
-            if not os.path.isfile(other_mbtiles):
-                sys.stderr.write("Missing file %s" % (other_mbtiles))
-                sys.exit(1)
             merge_mbtiles(receiving_mbtiles, other_mbtiles, **options.__dict__)
 
-        optimize_database_file(args[0], options.skip_analyze, options.skip_vacuum, options.journal_mode)
+        optimize_database(args[0], options.auto_commit, options.skip_analyze, options.skip_vacuum, options.journal_mode)
         sys.exit(0)
 
     # export from mbtiles to disk
     if options.export_tiles:
-        if not os.path.isfile(args[0]):
-            sys.stderr.write('The mbtiles database to export must exist.\n')
-            sys.exit(1)
-
         mbtiles_file, directory_path = args
         mbtiles_to_disk(mbtiles_file, directory_path, **options.__dict__)
         sys.exit(0)
@@ -373,5 +322,4 @@ if __name__ == '__main__':
 
         directory_path, mbtiles_file = args
         disk_to_mbtiles(directory_path, mbtiles_file, **options.__dict__)
-        optimize_database_file(mbtiles_file, options.skip_analyze, options.skip_vacuum, options.journal_mode)
         sys.exit(0)

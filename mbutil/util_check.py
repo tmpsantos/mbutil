@@ -1,6 +1,6 @@
 import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile
 
-from util import mbtiles_connect, optimize_connection, optimize_database, execute_commands_on_tile
+from util import mbtiles_connect, execute_commands_on_tile, prettify_connect_string
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,9 @@ def check_mbtiles(mbtiles_file, **kwargs):
     min_zoom = kwargs.get('min_zoom', 0)
     max_zoom = kwargs.get('max_zoom', 18)
 
-    journal_mode = kwargs.get('journal_mode', 'wal')
+    auto_commit     = kwargs.get('auto_commit', False)
+    journal_mode    = kwargs.get('journal_mode', 'wal')
+    synchronous_off = kwargs.get('synchronous_off', False)
 
     if zoom >= 0:
         min_zoom = max_zoom = zoom
@@ -26,16 +28,14 @@ def check_mbtiles(mbtiles_file, **kwargs):
     else:
         zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
 
-    logger.info("Checking database %s (%s)" % (mbtiles_file, zoom_level_string))
+    logger.info("Checking %s (%s)" % (prettify_connect_string(mbtiles_file), zoom_level_string))
 
 
-    con = mbtiles_connect(mbtiles_file)
-    cur = con.cursor()
-    optimize_connection(cur, journal_mode)
+    con = mbtiles_connect(mbtiles_file, auto_commit, journal_mode, synchronous_off, False, True)
 
     logger.debug("Loading zoom levels")
 
-    zoom_levels = [int(x[0]) for x in cur.execute("SELECT distinct(zoom_level) FROM map").fetchall()]
+    zoom_levels = con.zoom_levels()
     missing_tiles = []
 
     for current_zoom_level in zoom_levels:
@@ -44,8 +44,7 @@ def check_mbtiles(mbtiles_file, **kwargs):
 
         logger.debug("Starting zoom level %d" % (current_zoom_level))
 
-        t = cur.execute("""SELECT min(tile_column), max(tile_column), min(tile_row), max(tile_row) FROM tiles WHERE zoom_level = ?""",
-            [current_zoom_level]).fetchone()
+        t = con.bounding_box_for_zoom_level(current_zoom_level)
 
         minX, maxX, minY, maxY = t[0], t[1], t[2], t[3]
 
@@ -55,8 +54,7 @@ def check_mbtiles(mbtiles_file, **kwargs):
             logger.debug("   - Row: %d (%.1f%%)" %
                 (current_row, (float(current_row - minY) / float(maxY - minY)) * 100.0) if minY != maxY else 100.0)
 
-            mbtiles_columns = set([int(x[0]) for x in cur.execute("""SELECT tile_column FROM tiles WHERE zoom_level=? AND tile_row=?""",
-                (current_zoom_level, current_row)).fetchall()])
+            mbtiles_columns = con.columns_for_zoom_level_and_row(current_zoom_level, current_row)
 
             for current_column in range(minX, maxX+1):
                 if current_column not in mbtiles_columns:

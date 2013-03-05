@@ -1,20 +1,16 @@
 import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile
 
-from util import mbtiles_connect, mbtiles_setup, optimize_connection, optimize_database, execute_commands_on_tile, flip_y, compaction_update
+from util import mbtiles_connect, execute_commands_on_tile, flip_y, prettify_connect_string
 
 logger = logging.getLogger(__name__)
 
 
 def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
-    import_into_existing_mbtiles = os.path.isfile(mbtiles_file)
-    existing_mbtiles_is_compacted = True
-
-    no_overwrite  = kwargs.get('no_overwrite', False)
-    auto_commit   = kwargs.get('auto_commit', False)
-    journal_mode  = kwargs.get('journal_mode', 'wal')
-
+    auto_commit     = kwargs.get('auto_commit', False)
+    journal_mode    = kwargs.get('journal_mode', 'wal')
     synchronous_off = kwargs.get('synchronous_off', False)
+
     print_progress  = kwargs.get('progress', False)
 
     zoom     = kwargs.get('zoom', -1)
@@ -36,77 +32,41 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     else:
         zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
 
-    logger.info("Importing from disk to database: %s --> %s (%s)" % (directory_path, mbtiles_file, zoom_level_string))
+    logger.info("Importing path:'%s' --> %s (%s)" % (directory_path, prettify_connect_string(mbtiles_file), zoom_level_string))
 
 
-    con = mbtiles_connect(mbtiles_file, auto_commit)
-    cur = con.cursor()
-    optimize_connection(cur, journal_mode, synchronous_off, False)
+    con = mbtiles_connect(mbtiles_file, auto_commit, journal_mode, synchronous_off, False)
 
+    if not con.is_compacted():
+        con.close()
+        logger.info("The mbtiles database must be compacted, exiting...")
+        return
 
-    if import_into_existing_mbtiles:
-        existing_mbtiles_is_compacted = (con.execute("SELECT count(name) FROM sqlite_master WHERE type='table' AND name='images'").fetchone()[0] > 0)
-        if existing_mbtiles_is_compacted:
-            compaction_update(cur)
-    else:
-        mbtiles_setup(cur)
+    con.mbtiles_setup()
 
 
     image_format = 'png'
     try:
+
         metadata = json.load(open(os.path.join(directory_path, 'metadata.json'), 'r'))
         image_format = metadata.get('format', 'png')
 
         # Check that the old and new image formats are the same
-        if import_into_existing_mbtiles:
-            original_format = None
+        receiving_metadata = con.metadata()
 
-            try:
-                original_format = cur.execute("SELECT value FROM metadata WHERE name='format'").fetchone()[0]
-            except:
-                pass
+        if receiving_metadata != None:
+            original_format = receiving_metadata.get('format')
 
             if original_format != None and image_format != original_format:
-                sys.stderr.write('The files to merge must use the same image format (png or jpg)\n')
+                sys.stderr.write('The databases to merge must use the same image format (png or jpg)\n')
                 sys.exit(1)
-
-        if not import_into_existing_mbtiles:
+        else:
             for name, value in metadata.items():
-                cur.execute('INSERT OR IGNORE INTO metadata (name, value) VALUES (?, ?)',
-                        (name, value))
-            con.commit()
+                con.update_metadata(name, value)
             logger.info('metadata from metadata.json restored')
 
     except IOError:
         logger.warning('metadata.json not found')
-
-
-    existing_tiles = {}
-
-    if no_overwrite:
-        logger.info("Checking existing tiles")
-        
-        tiles = cur.execute("""SELECT zoom_level, tile_column, tile_row FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
-            (min_zoom, max_zoom))
-
-        t = tiles.fetchone()
-        while t:
-            z = str(t[0])
-            x = str(t[1])
-            y = str(t[2])
-
-            zoom = existing_tiles.get(z, None)
-            if not zoom:
-                zoom = {}
-                existing_tiles[z] = zoom
-
-            row = zoom.get(y, None)
-            if not row:
-                row = set()
-                zoom[y] = row
-
-            row.add(x)
-            t = tiles.fetchone()
 
 
     count = 0
@@ -128,11 +88,6 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                         for y in ys:
                             y, extension = y.split('.')
 
-                            if no_overwrite:
-                                if x in existing_tiles.get(z, {}).get(y, set()):
-                                    logging.debug("Ignoring tile (%d, %d, %d)" % (z, x, y))
-                                    continue
-
                             f = open(os.path.join(r1, z, x, y) + '.' + extension, 'rb')
                             tile_data = f.read()
                             f.close()
@@ -144,20 +99,12 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                             if kwargs.get('command_list'):
                                 tile_data = execute_commands_on_tile(kwargs['command_list'], image_format, tile_data, tmp_dir)
 
-                            if existing_mbtiles_is_compacted:
-                                m = hashlib.md5()
-                                m.update(tile_data)
-                                tile_id = m.hexdigest()
+                            m = hashlib.md5()
+                            m.update(tile_data)
+                            tile_id = m.hexdigest()
 
-                                cur.execute("""INSERT OR IGNORE INTO images (tile_id, tile_data) VALUES (?, ?)""",
-                                    (tile_id, sqlite3.Binary(tile_data)))
-
-                                cur.execute("""REPLACE INTO map (zoom_level, tile_column, tile_row, tile_id, updated_at) VALUES (?, ?, ?, ?, ?)""",
-                                    (z, x, y, tile_id, int(time.time())))
-                            else:
-                                cur.execute("""REPLACE INTO tiles (zoom_level, tile_column, tile_row, tile_data) VALUES (?, ?, ?, ?)""",
-                                    (z, x, y.split('.')[0], sqlite3.Binary(tile_data)))
-
+                            con.insert_tile_to_images(tile_id, tile_data)
+                            con.insert_tile_to_map(z, x, y, tile_id)
 
                             count = count + 1
                             if (count % 100) == 0:
@@ -175,5 +122,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
         sys.stdout.write("%d tiles imported.\n" % (count))
         sys.stdout.flush()
 
-    con.commit()
+
+    con.optimize_database(kwargs.get('skip_analyze', False), kwargs.get('skip_vacuum', False))
+
     con.close()

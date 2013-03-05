@@ -1,3 +1,7 @@
+### v0.2.0
+* Refactored database queries into a separate class
+* Added a PostgreSQL database adapter
+
 ### v0.1.0
 
 * Switch tests to nosetest
