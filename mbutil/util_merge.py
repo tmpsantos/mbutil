@@ -82,16 +82,6 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         sys.exit(1)
 
 
-    zoom_level_string = None
-
-    if min_zoom == max_zoom:
-        zoom_level_string = "zoom level %d" % (min_zoom)
-    else:
-        zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
-
-    logger.info("Merging %s --> %s (%s)" % (prettify_connect_string(mbtiles_file2), prettify_connect_string(mbtiles_file1), zoom_level_string))
-
-
     con1 = mbtiles_connect(mbtiles_file1, auto_commit, journal_mode, synchronous_off, False, False)
     con2 = mbtiles_connect(mbtiles_file2, auto_commit, journal_mode, synchronous_off, False, True)
 
@@ -108,6 +98,16 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         con2.close()
         sys.stderr.write('min-timestamp/max-timestamp can only be used with compacted databases.\n')
         sys.exit(1)
+
+
+    zoom_level_string = None
+
+    if min_zoom == max_zoom:
+        zoom_level_string = "zoom level %d" % (min_zoom)
+    else:
+        zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
+
+    logger.info("Merging %s --> %s (%s)" % (prettify_connect_string(con2.connect_string), prettify_connect_string(con1.connect_string), zoom_level_string))
 
 
     # Check that the old and new image formats are the same

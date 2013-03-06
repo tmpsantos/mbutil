@@ -77,18 +77,7 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
         min_zoom = max_zoom = zoom
 
 
-    zoom_level_string = None
-
-    if min_zoom == max_zoom:
-        zoom_level_string = "zoom level %d" % (min_zoom)
-    else:
-        zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
-
-    logger.info("Executing commands on %s (%s)" % (prettify_connect_string(mbtiles_file), zoom_level_string))
-
-
     con = mbtiles_connect(mbtiles_file, auto_commit, journal_mode, synchronous_off, False, True)
-
 
     if not con.is_compacted():
         con.close()
@@ -96,6 +85,16 @@ def execute_commands_on_mbtiles(mbtiles_file, **kwargs):
         return
 
     con.mbtiles_setup()
+
+    zoom_level_string = None
+
+    if min_zoom == max_zoom:
+        zoom_level_string = "zoom level %d" % (min_zoom)
+    else:
+        zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
+
+    logger.info("Executing commands on %s (%s)" % (prettify_connect_string(con.connect_string), zoom_level_string))
+
 
     image_format = 'png'
 

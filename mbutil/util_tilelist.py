@@ -23,6 +23,9 @@ def mbtiles_tilelist(mbtiles_file, **kwargs):
         min_zoom = max_zoom = zoom
 
 
+    con = mbtiles_connect(mbtiles_file, auto_commit, journal_mode, synchronous_off, False, True)
+
+
     zoom_level_string = None
 
     if min_zoom == max_zoom:
@@ -30,10 +33,7 @@ def mbtiles_tilelist(mbtiles_file, **kwargs):
     else:
         zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
 
-    logger.info("Tile list for %s (%s)" % (prettify_connect_string(mbtiles_file), zoom_level_string))
-
-
-    con = mbtiles_connect(mbtiles_file, auto_commit, journal_mode, synchronous_off, False, True)
+    logger.info("Tile list for %s (%s)" % (prettify_connect_string(con.connect_string), zoom_level_string))
 
 
     for current_zoom_level in range(min_zoom, max_zoom+1):

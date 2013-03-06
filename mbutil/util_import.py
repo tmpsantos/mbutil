@@ -25,16 +25,6 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
         min_zoom = max_zoom = zoom
 
 
-    zoom_level_string = None
-
-    if min_zoom == max_zoom:
-        zoom_level_string = "zoom level %d" % (min_zoom)
-    else:
-        zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
-
-    logger.info("Importing path:'%s' --> %s (%s)" % (directory_path, prettify_connect_string(mbtiles_file), zoom_level_string))
-
-
     con = mbtiles_connect(mbtiles_file, auto_commit, journal_mode, synchronous_off, False)
 
     con.mbtiles_setup()
@@ -45,6 +35,16 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
         return
 
     con.mbtiles_setup()
+
+
+    zoom_level_string = None
+
+    if min_zoom == max_zoom:
+        zoom_level_string = "zoom level %d" % (min_zoom)
+    else:
+        zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
+
+    logger.info("Importing path:'%s' --> %s (%s)" % (directory_path, prettify_connect_string(con.connect_string), zoom_level_string))
 
 
     image_format = 'png'

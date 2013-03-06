@@ -6,7 +6,6 @@ from util import mbtiles_connect, prettify_connect_string
 
 
 def expire_mbtiles(mbtiles_file, **kwargs):
-    logger.info("Expiring tiles from %s" % (prettify_connect_string(mbtiles_file)))
 
     zoom        = kwargs.get('zoom', -1)
     min_zoom    = kwargs.get('min_zoom', 0)
@@ -28,6 +27,8 @@ def expire_mbtiles(mbtiles_file, **kwargs):
 
     con = mbtiles_connect(mbtiles_file, auto_commit, journal_mode, synchronous_off, False, True)
 
+    logger.info("Expiring tiles from %s" % (prettify_connect_string(con.connect_string)))
+
     expire_timestamp = (int(time.time()) - (int(expire_days) * 86400))
 
     logger.debug("Expiring tiles older than %s" % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(expire_timestamp))))
@@ -35,5 +36,4 @@ def expire_mbtiles(mbtiles_file, **kwargs):
     con.delete_tiles(min_zoom, max_zoom, 0, expire_timestamp)
 
     con.optimize_database(kwargs.get('skip_analyze', False), kwargs.get('skip_vacuum', False))
-
     con.close()

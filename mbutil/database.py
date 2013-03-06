@@ -9,7 +9,7 @@ def database_connect(connect_string, auto_commit=False, journal_mode='wal', sync
 
     if connect_string.endswith(".mbtiles"):
         return MBTilesSQLite(connect_string, auto_commit, journal_mode, synchronous_off, exclusive_lock, check_if_exists)
-    elif connect_string.find("dbname") >= 0:
+    elif connect_string.find("dbname") >= 0 or connect_string.startswith("pg:"):
         return MBTilesPostgres(connect_string, auto_commit, journal_mode, synchronous_off, exclusive_lock, check_if_exists)
     else:
         logger.error("Unknown database connection string")
@@ -398,10 +398,20 @@ class MBTilesSQLite(MBTilesDatabase):
 class MBTilesPostgres(MBTilesDatabase):
 
     def __init__(self, connect_string, auto_commit=False, journal_mode='wal', synchronous_off=False, exclusive_lock=False, check_if_exists=False):
-        self.connect_string = connect_string
-
         try:
 
+            if connect_string.startswith("pg:"):
+                if os.path.isfile("/etc/mb-util.conf"):
+                    config = {}
+
+                    with open("/etc/mb-util.conf") as f:
+                        config = {key.strip(): value.strip() for line in f for (key, value) in (line.strip().split(":", 1),)}
+
+                    key = connect_string.split(':')[1]
+                    if len(key):
+                        connect_string = config.get(key, connect_string)
+
+            self.connect_string = connect_string
             self.con = psycopg2.connect(connect_string)
 
             # autocommit is always enabled in PostgreSQL since it makes lots of things easier

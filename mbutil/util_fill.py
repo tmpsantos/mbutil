@@ -34,16 +34,6 @@ def fill_mbtiles(mbtiles_file, image_filename, **kwargs):
         return
 
 
-    zoom_level_string = None
-
-    if min_zoom == max_zoom:
-        zoom_level_string = "zoom level %d" % (min_zoom)
-    else:
-        zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
-
-    logger.info("Filling %s (%s)" % (prettify_connect_string(mbtiles_file), zoom_level_string))
-
-
     con = mbtiles_connect(mbtiles_file, auto_commit, journal_mode, synchronous_off, False)
 
     con.mbtiles_setup()
@@ -53,7 +43,16 @@ def fill_mbtiles(mbtiles_file, image_filename, **kwargs):
         logger.info("The mbtiles database must be compacted, exiting...")
         return
 
-    con.mbtiles_setup()
+
+    zoom_level_string = None
+
+    if min_zoom == max_zoom:
+        zoom_level_string = "zoom level %d" % (min_zoom)
+    else:
+        zoom_level_string = "zoom levels %d -> %d" % (min_zoom, max_zoom)
+
+    logger.info("Filling %s (%s)" % (prettify_connect_string(con.connect_string), zoom_level_string))
+
 
     # Insert an image
     tmp_file = open(image_filename, "r")
