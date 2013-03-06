@@ -44,7 +44,9 @@ def fill_mbtiles(mbtiles_file, image_filename, **kwargs):
     logger.info("Filling %s (%s)" % (prettify_connect_string(mbtiles_file), zoom_level_string))
 
 
-    con = mbtiles_connect(mbtiles_file, auto_commit, journal_mode, synchronous_off, False, True)
+    con = mbtiles_connect(mbtiles_file, auto_commit, journal_mode, synchronous_off, False)
+
+    con.mbtiles_setup()
 
     if not con.is_compacted():
         con.close()

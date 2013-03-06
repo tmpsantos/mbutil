@@ -157,19 +157,19 @@ class MBTilesSQLite(MBTilesDatabase):
 
         self.cur.execute("""
             CREATE TABLE IF NOT EXISTS images (
-            tile_data BLOB,
-            tile_id VARCHAR(256))""")
+            tile_id VARCHAR(256),
+            tile_data BLOB )""")
         self.cur.execute("""
             CREATE TABLE IF NOT EXISTS map (
             zoom_level INTEGER,
             tile_column INTEGER,
             tile_row INTEGER,
             tile_id VARCHAR(256),
-            updated_at INTEGER)""")
+            updated_at INTEGER )""")
         self.cur.execute("""
             CREATE TABLE IF NOT EXISTS metadata (
             name VARCHAR(256),
-            value TEXT)""")
+            value TEXT )""")
         self.cur.execute("""
             CREATE UNIQUE INDEX IF NOT EXISTS name ON metadata (name)""")
 
@@ -406,6 +406,7 @@ class MBTilesPostgres(MBTilesDatabase):
 
             # autocommit is always enabled in PostgreSQL since it makes lots of things easier
             # until Postgres has an upsert method
+            # if auto_commit:
             self.con.autocommit = True
 
             self.cur = self.con.cursor()
@@ -418,27 +419,27 @@ class MBTilesPostgres(MBTilesDatabase):
                     sys.exit(1)
 
         except Exception, e:
-            logger.error("Could not connect to PostgreSQL database")
-            logger.exception(e)
+            logger.error("Could not connect to the PostgreSQL database:")
+            logger.error(e)
             sys.exit(1)
 
 
     def mbtiles_setup(self):
         self.cur.execute("""
             CREATE TABLE IF NOT EXISTS images (
-            tile_data BYTEA,
-            tile_id VARCHAR(256))""")
+            tile_id VARCHAR(256),
+            tile_data BYTEA )""")
         self.cur.execute("""
             CREATE TABLE IF NOT EXISTS map (
             zoom_level SMALLINT,
             tile_column INTEGER,
             tile_row INTEGER,
             tile_id VARCHAR(256),
-            updated_at INTEGER)""")
+            updated_at INTEGER )""")
         self.cur.execute("""
             CREATE TABLE IF NOT EXISTS metadata (
             name VARCHAR(256),
-            value TEXT)""")
+            value TEXT )""")
 
         self.cur.execute("SELECT count(*) FROM pg_class WHERE relname = 'metadata_name_index'")
         if self.cur.fetchone()[0] == 0:
@@ -519,7 +520,7 @@ class MBTilesPostgres(MBTilesDatabase):
 
     def tiles_with_tile_id(self, min_zoom, max_zoom, min_timestamp, max_timestamp):
         # TODO: named cursors work only in transactions
-        # Fetch data in chunks
+        # Fetch data in chunks?
         tiles_cur = self.con.cursor()
 
         if min_timestamp > 0 and max_timestamp > 0:

@@ -37,6 +37,8 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
     con = mbtiles_connect(mbtiles_file, auto_commit, journal_mode, synchronous_off, False)
 
+    con.mbtiles_setup()
+
     if not con.is_compacted():
         con.close()
         logger.info("The mbtiles database must be compacted, exiting...")
