@@ -264,25 +264,26 @@ class MBTilesSQLite(MBTilesDatabase):
     def tiles_with_tile_id(self, min_zoom, max_zoom, min_timestamp, max_timestamp):
         tiles_cur = self.con.cursor()
 
-        tiles = None
+        chunk = 10000
 
         if min_timestamp > 0 and max_timestamp > 0:
-            tiles = tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=? and map.zoom_level<=? AND map.updated_at>? AND map.updated_at<?) AND (images.tile_id == map.tile_id)""",
+            tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=? and map.zoom_level<=? AND map.updated_at>? AND map.updated_at<?) AND (images.tile_id == map.tile_id)""",
                 (min_zoom, max_zoom, min_timestamp, max_timestamp))
         elif min_timestamp > 0:
-            tiles = tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=? and map.zoom_level<=? AND map.updated_at>?) AND (images.tile_id == map.tile_id)""",
+            tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=? and map.zoom_level<=? AND map.updated_at>?) AND (images.tile_id == map.tile_id)""",
                 (min_zoom, max_zoom, min_timestamp))
         elif max_timestamp > 0:
-            tiles = tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=? and map.zoom_level<=? AND map.updated_at<?) AND (images.tile_id == map.tile_id)""",
+            tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=? and map.zoom_level<=? AND map.updated_at<?) AND (images.tile_id == map.tile_id)""",
                 (min_zoom, max_zoom, max_timestamp))
         else:
-            tiles = tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=? and map.zoom_level<=?) AND (images.tile_id == map.tile_id)""",
+            tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=? and map.zoom_level<=?) AND (images.tile_id == map.tile_id)""",
                 (min_zoom, max_zoom))
 
-        t = tiles.fetchone()
-        while t:
-            yield t
-            t = tiles.fetchone()
+        rows = tiles_cur.fetchmany(chunk)
+        while rows:
+            for t in rows:
+                yield t
+            rows = tiles_cur.fetchmany(chunk)
 
         tiles_cur.close()
 
@@ -290,29 +291,30 @@ class MBTilesSQLite(MBTilesDatabase):
     def tiles(self, min_zoom, max_zoom, min_timestamp, max_timestamp):
         tiles_cur = self.con.cursor()
 
-        tiles = None
+        chunk = 10000
     
         if self.is_compacted():
             if min_timestamp > 0 and max_timestamp > 0:
-                tiles = tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?""",
+                tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?""",
                     (min_zoom, max_zoom, min_timestamp, max_timestamp))
             elif min_timestamp > 0:
-                tiles = tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at>?""",
+                tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at>?""",
                     (min_zoom, max_zoom, min_timestamp))
             elif max_timestamp > 0:
-                tiles = tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at<?""",
+                tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=? AND updated_at<?""",
                     (min_zoom, max_zoom, max_timestamp))
             else:
-                tiles = tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
+                tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
                     (min_zoom, max_zoom))
         else:
-            tiles = tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
+            tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
                 (min_zoom, max_zoom))
 
-        t = tiles.fetchone()
-        while t:
-            yield t
-            t = tiles.fetchone()
+        rows = tiles_cur.fetchmany(chunk)
+        while rows:
+            for t in rows:
+                yield t
+            rows = tiles_cur.fetchmany(chunk)
 
         tiles_cur.close()
 
