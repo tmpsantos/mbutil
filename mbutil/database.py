@@ -405,11 +405,20 @@ class MBTilesPostgres(MBTilesDatabase):
                     config = {}
 
                     with open("/etc/mb-util.conf") as f:
-                        config = {key.strip(): value.strip() for line in f for (key, value) in (line.strip().split(":", 1),)}
+                        for line in f:
+                            try:
+                                for (key, value) in (line.strip().split(":", 1),):
+                                    config[key.strip()] = value.strip()
+                            except:
+                                pass
 
                     key = connect_string.split(':')[1]
                     if len(key):
-                        connect_string = config.get(key, connect_string)
+                        if config.get(key, None) != None:
+                            connect_string = config.get(key, connect_string)
+                        else:
+                            logger.error("Could not find '%s' in /etc/mb-util.conf." % (key))
+                            sys.exit(1)
 
             self.connect_string = connect_string
             self.con = psycopg2.connect(connect_string)
@@ -429,7 +438,7 @@ class MBTilesPostgres(MBTilesDatabase):
                     sys.exit(1)
 
         except Exception, e:
-            logger.error("Could not connect to the PostgreSQL database:")
+            logger.error("Could not connect to the PostgreSQL database '%s':" % (connect_string))
             logger.error(e)
             sys.exit(1)
 
