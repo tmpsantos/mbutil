@@ -147,8 +147,8 @@ class MBTilesSQLite(MBTilesDatabase):
                 self.cur.execute("PRAGMA synchronous = OFF")
 
         except Exception, e:
-            logger.error("Could not connect to SQLite database")
-            logger.exception(e)
+            logger.error("Could not connect to the SQLite database:")
+            logger.error(e)
             sys.exit(1)
 
 

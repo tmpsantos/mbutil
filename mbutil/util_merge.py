@@ -15,7 +15,7 @@ def process_tiles(pool, tiles_to_process, con, count, total_tiles, start_time, p
 
     for next_tile in processed_tiles:
         tile_data = None
-        tile_id, tile_file_path, original_size, x, y, z = next_tile['tile_id'], next_tile['filename'], next_tile['size'], next_tile['x'], next_tile['y'], next_tile['z']
+        tile_id, tile_file_path, original_size, tile_x, tile_y, tile_z = next_tile['tile_id'], next_tile['filename'], next_tile['size'], next_tile['tile_x'], next_tile['tile_y'], next_tile['tile_z']
 
         if os.path.isfile(tile_file_path):
             tmp_file = open(tile_file_path, "r")
@@ -31,7 +31,7 @@ def process_tiles(pool, tiles_to_process, con, count, total_tiles, start_time, p
                 known_tile_ids[tile_id] = new_tile_id
 
                 con.insert_tile_to_images(new_tile_id, tile_data)
-                tmp_row_list.append( (z, x, y, new_tile_id, int(time.time())) )
+                tmp_row_list.append( (tile_z, tile_x, tile_y, new_tile_id, int(time.time())) )
         else:
             if delete_vanished_tiles:
                 logger.debug("Skipping vanished tile %s" % (tile_id, ))
@@ -68,6 +68,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     delete_after_export   = kwargs.get('delete_after_export', False)
     print_progress        = kwargs.get('progress', False)
     delete_vanished_tiles = kwargs.get('delete_vanished_tiles', False)
+    flip_tile_y           = kwargs.get('flip_y', False)
 
     if tmp_dir and not os.path.isdir(tmp_dir):
         os.mkdir(tmp_dir)
@@ -175,14 +176,14 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         known_tile_ids = {}
 
         for t in con2.tiles_with_tile_id(min_zoom, max_zoom, min_timestamp, max_timestamp):
-            z = t[0]
-            x = t[1]
-            y = t[2]
+            tile_z = t[0]
+            tile_x = t[1]
+            tile_y = t[2]
             tile_data = str(t[3])
             tile_id = t[4]
 
-            if kwargs.get('flip_y', False) == True:
-                y = flip_y(z, y)
+            if flip_tile_y:
+                tile_y = flip_y(tile_z, tile_y)
 
             new_tile_id = known_tile_ids.get(tile_id)
             if new_tile_id is None:
@@ -197,12 +198,12 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
                     'format':new_format,
                     'size':len(tile_data),
                     'command_list':kwargs['command_list'],
-                    'x':x,
-                    'y':y,
-                    'z':z
+                    'tile_x':tile_x,
+                    'tile_y':tile_y,
+                    'tile_z':tile_z
                 })
             else:
-                con1.insert_tile_to_map(z, x, y, new_tile_id)
+                con1.insert_tile_to_map(tile_z, tile_x, tile_y, new_tile_id)
 
                 count = count + 1
                 if (count % 100) == 0:
@@ -231,20 +232,20 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         tmp_row_list = []
 
         for t in con2.tiles_with_tile_id(min_zoom, max_zoom, min_timestamp, max_timestamp):
-            z = t[0]
-            x = t[1]
-            y = t[2]
+            tile_z = t[0]
+            tile_x = t[1]
+            tile_y = t[2]
             tile_data = str(t[3])
             tile_id = t[4]
 
-            if kwargs.get('flip_y', False) == True:
-                y = flip_y(z, y)
+            if flip_tile_y:
+                tile_y = flip_y(tile_z, tile_y)
 
             if tile_id not in known_tile_ids:
                 tmp_images_list.append( (tile_id, tile_data) )
                 known_tile_ids.add(tile_id)
 
-            tmp_row_list.append( (z, x, y, tile_id, int(time.time())) )
+            tmp_row_list.append( (tile_z, tile_x, tile_y, tile_id, int(time.time())) )
 
             count = count + 1
             if (count % 100) == 0:
@@ -274,13 +275,13 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         known_tile_ids = set()
 
         for t in con2.tiles(min_zoom, max_zoom, min_timestamp, max_timestamp):
-            z = t[0]
-            x = t[1]
-            y = t[2]
+            tile_z = t[0]
+            tile_x = t[1]
+            tile_y = t[2]
             tile_data = str(t[3])
 
-            if kwargs.get('flip_y', False) == True:
-                y = flip_y(z, y)
+            if flip_tile_y:
+                tile_y = flip_y(tile_z, tile_y)
 
             # Execute commands
             if kwargs.get('command_list'):
@@ -293,7 +294,7 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
             if tile_id not in known_tile_ids:
                 con1.insert_tile_to_images(tile_id, tile_data)
 
-            con1.insert_tile_to_map(z, x, y, tile_id)
+            con1.insert_tile_to_map(tile_z, tile_x, tile_y, tile_id)
 
             known_tile_ids.add(tile_id)
 

@@ -19,6 +19,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
     tmp_dir  = kwargs.get('tmp_dir', None)
 
     print_progress = kwargs.get('progress', False)
+    flip_tile_y    = kwargs.get('flip_y', False)
     min_timestamp  = kwargs.get('min_timestamp', 0)
     max_timestamp  = kwargs.get('max_timestamp', 0)
 
@@ -73,23 +74,23 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
 
 
     for t in con.tiles(min_zoom, max_zoom, min_timestamp, max_timestamp):
-        z = t[0]
-        x = t[1]
-        y = t[2]
+        tile_z = t[0]
+        tile_x = t[1]
+        tile_y = t[2]
         tile_data = str(t[3])
 
         # Execute commands
         if kwargs.get('command_list'):
             tile_data = execute_commands_on_tile(kwargs['command_list'], image_format, tile_data, tmp_dir)
 
-        if kwargs.get('flip_y', False) == True:
-            y = flip_y(z, y)
+        if flip_tile_y:
+            tile_y = flip_y(tile_z, tile_y)
 
-        tile_dir = os.path.join(base_path, str(z), str(x))
+        tile_dir = os.path.join(base_path, str(tile_z), str(tile_x))
         if not os.path.isdir(tile_dir):
             os.makedirs(tile_dir)
 
-        tile_file = os.path.join(tile_dir, '%s.%s' % (y, metadata.get('format', 'png')))
+        tile_file = os.path.join(tile_dir, '%s.%s' % (tile_y, metadata.get('format', 'png')))
 
         f = open(tile_file, 'wb')
         f.write(tile_data)

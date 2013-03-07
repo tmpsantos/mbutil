@@ -12,6 +12,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     synchronous_off = kwargs.get('synchronous_off', False)
 
     print_progress  = kwargs.get('progress', False)
+    flip_tile_y     = kwargs.get('flip_y', False)
 
     zoom     = kwargs.get('zoom', -1)
     min_zoom = kwargs.get('min_zoom', 0)
@@ -80,22 +81,22 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
 
     for r1, zs, ignore in os.walk(os.path.join(directory_path, "tiles")):
-        for z in zs:
-            if int(z) < min_zoom or int(z) > max_zoom:
+        for tile_z in zs:
+            if int(tile_z) < min_zoom or int(tile_z) > max_zoom:
                 continue
 
-            for r2, xs, ignore in os.walk(os.path.join(r1, z)):
-                for x in xs:
-                    for r2, ignore, ys in os.walk(os.path.join(r1, z, x)):
-                        for y in ys:
-                            y, extension = y.split('.')
+            for r2, xs, ignore in os.walk(os.path.join(r1, tile_z)):
+                for tile_x in xs:
+                    for r2, ignore, ys in os.walk(os.path.join(r1, tile_z, tile_x)):
+                        for tile_y in ys:
+                            tile_y, extension = tile_y.split('.')
 
-                            f = open(os.path.join(r1, z, x, y) + '.' + extension, 'rb')
+                            f = open(os.path.join(r1, tile_z, tile_x, tile_y) + '.' + extension, 'rb')
                             tile_data = f.read()
                             f.close()
 
-                            if kwargs.get('flip_y', False) == True:
-                                y = str(flip_y(z, y))
+                            if flip_tile_y:
+                                tile_y = str(flip_y(tile_z, tile_y))
 
                             # Execute commands
                             if kwargs.get('command_list'):
@@ -106,7 +107,7 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                             tile_id = m.hexdigest()
 
                             con.insert_tile_to_images(tile_id, tile_data)
-                            con.insert_tile_to_map(z, x, y, tile_id)
+                            con.insert_tile_to_map(tile_z, tile_x, tile_y, tile_id)
 
                             count = count + 1
                             if (count % 100) == 0:

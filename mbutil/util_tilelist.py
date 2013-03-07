@@ -1,6 +1,6 @@
 import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile
 
-from util import mbtiles_connect, prettify_connect_string
+from util import mbtiles_connect, prettify_connect_string, flip_y
 from util_convert import convert_tile_to_bbox
 
 logger = logging.getLogger(__name__)
@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 
 def mbtiles_tilelist(mbtiles_file, **kwargs):
 
-    flip_y    = kwargs.get('flip_y', False)
-    as_bboxes = kwargs.get('as_bboxes', False)
+    flip_tile_y = kwargs.get('flip_y', False)
+    as_bboxes   = kwargs.get('as_bboxes', False)
 
     zoom      = kwargs.get('zoom', -1)
     min_zoom  = kwargs.get('min_zoom', 0)
@@ -36,18 +36,18 @@ def mbtiles_tilelist(mbtiles_file, **kwargs):
     logger.info("Tile list for %s (%s)" % (prettify_connect_string(con.connect_string), zoom_level_string))
 
 
-    for current_zoom_level in range(min_zoom, max_zoom+1):
-        logger.debug("Starting zoom level %d" % (current_zoom_level))
+    for tile_z in range(min_zoom, max_zoom+1):
+        logger.debug("Starting zoom level %d" % (tile_z))
 
-        for t in con.columns_and_rows_for_zoom_level(current_zoom_level):
-            tile_column, tile_row = int(t[0]), int(t[1])
+        for t in con.columns_and_rows_for_zoom_level(tile_z):
+            tile_x, tile_y = int(t[0]), int(t[1])
 
             if as_bboxes:
-                convert_tile_to_bbox(current_zoom_level, tile_column, tile_row, flip_y)
+                convert_tile_to_bbox(tile_z, tile_x, tile_y, flip_tile_y)
             else:
-                if flip_y:
-                    tile_row = flip_y(current_zoom_level, tile_row)
-                sys.stdout.write("%d/%d/%d\n" % (current_zoom_level, tile_column, tile_row))
+                if flip_tile_y:
+                    tile_y = flip_y(tile_z, tile_y)
+                sys.stdout.write("%d/%d/%d\n" % (current_zoom_level, tile_x, tile_y))
 
 
     con.close()

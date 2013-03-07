@@ -18,6 +18,7 @@ def coordinate_to_tile(longitude, latitude, zoom):
     n = 2.0 ** zoom
     tileX = int((longitude + 180.0) / 360.0 * n)
     tileY = int((1.0 - math.log(math.tan(latitude_rad) + (1 / math.cos(latitude_rad))) / math.pi) / 2.0 * n)
+    if tileX > n-1: tileX = int(n-1)
     return (tileX, tileY)
 
 

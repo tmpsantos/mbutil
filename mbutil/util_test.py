@@ -1,6 +1,6 @@
 import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile, multiprocessing
 
-from util import mbtiles_connect, prettify_connect_string
+from util import mbtiles_connect, prettify_connect_string, flip_y
 from multiprocessing import Pool
 
 logger = logging.getLogger(__name__)
@@ -48,10 +48,11 @@ def process_tiles(pool, tiles_to_process):
 
 def test_mbtiles(mbtiles_file, **kwargs):
 
-    zoom     = kwargs.get('zoom', -1)
-    min_zoom = kwargs.get('min_zoom', 0)
-    max_zoom = kwargs.get('max_zoom', 18)
-    tmp_dir  = kwargs.get('tmp_dir', None)
+    zoom        = kwargs.get('zoom', -1)
+    min_zoom    = kwargs.get('min_zoom', 0)
+    max_zoom    = kwargs.get('max_zoom', 18)
+    tmp_dir     = kwargs.get('tmp_dir', None)
+    flip_tile_y = kwargs.get('flip_y', False)
 
     min_timestamp    = kwargs.get('min_timestamp', 0)
     max_timestamp    = kwargs.get('max_timestamp', 0)
@@ -105,6 +106,9 @@ def test_mbtiles(mbtiles_file, **kwargs):
         tile_x = t[1]
         tile_y = t[2]
         tile_data = str(t[3])
+
+        if flip_tile_y:
+            tile_y = flip_y(tile_z, tile_y)
 
         tmp_file_fd, tmp_file_name = tempfile.mkstemp(suffix=".%s" % (image_format), prefix="tile_", dir=tmp_dir)
         tmp_file = os.fdopen(tmp_file_fd, "w")

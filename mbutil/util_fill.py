@@ -1,6 +1,6 @@
 import sqlite3, uuid, sys, logging, time, os, re, json, zlib, hashlib, tempfile
 
-from util import mbtiles_connect, coordinate_to_tile, prettify_connect_string
+from util import mbtiles_connect, coordinate_to_tile, prettify_connect_string, flip_y
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +25,12 @@ def fill_mbtiles(mbtiles_file, image_filename, **kwargs):
     elif min_zoom == max_zoom:
         zoom = min_zoom
 
-    if tile_bbox != None and zoom <= 0:
+    if tile_bbox != None and zoom < 0:
         logger.info("--tile-bbox can only be used with --zoom, exiting...")
         return
 
     if tile_bbox == None and bbox == None:
-        logger.info("Either --tile-bbox or --box must be given, exiting...")
+        logger.info("Either --tile-bbox or --bbox must be given, exiting...")
         return
 
 
@@ -70,7 +70,7 @@ def fill_mbtiles(mbtiles_file, image_filename, **kwargs):
     start_time = time.time()
 
 
-    for z in range(min_zoom, max_zoom+1):
+    for tile_z in range(min_zoom, max_zoom+1):
         min_x = min_y = max_x = max_y = 0
 
         if tile_bbox != None:
@@ -81,19 +81,19 @@ def fill_mbtiles(mbtiles_file, image_filename, **kwargs):
             match = re.match(r'([-0-9\.]+),([-0-9\.]+),([-0-9\.]+),([-0-9\.]+)', bbox, re.I)
             if match:
                 left, bottom, right, top = float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))
-                min_x, min_y = coordinate_to_tile(left, bottom, zoom)
-                max_x, max_y = coordinate_to_tile(right, top, zoom)
+                min_x, min_y = coordinate_to_tile(left, bottom, tile_z)
+                max_x, max_y = coordinate_to_tile(right, top, tile_z)
 
         if min_y > max_y:
             min_y, max_y = max_y, min_y
 
-        for x in range(min_x, max_x+1):
-            for y in range(min_y, max_y+1):
+        for tile_x in range(min_x, max_x+1):
+            for tile_y in range(min_y, max_y+1):
                 if flip_tile_y:
-                    y = flip_y(zoom, y)
+                    tile_y = flip_y(tile_z, tile_y)
 
                 # z, x, y
-                con.insert_tile_to_map(z, x, y, tile_id, False) # Don't overwrite existing tiles 
+                con.insert_tile_to_map(tile_z, tile_x, tile_y, tile_id, False) # Don't overwrite existing tiles
 
                 count = count + 1
                 if (count % 100) == 0:

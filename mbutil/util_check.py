@@ -9,9 +9,10 @@ def check_mbtiles(mbtiles_file, **kwargs):
 
     result = True
 
-    zoom     = kwargs.get('zoom', -1)
-    min_zoom = kwargs.get('min_zoom', 0)
-    max_zoom = kwargs.get('max_zoom', 18)
+    zoom        = kwargs.get('zoom', -1)
+    min_zoom    = kwargs.get('min_zoom', 0)
+    max_zoom    = kwargs.get('max_zoom', 18)
+    flip_tile_y = kwargs.get('flip_y', False)
 
     auto_commit     = kwargs.get('auto_commit', False)
     journal_mode    = kwargs.get('journal_mode', 'wal')
@@ -39,27 +40,29 @@ def check_mbtiles(mbtiles_file, **kwargs):
     zoom_levels = con.zoom_levels()
     missing_tiles = []
 
-    for current_zoom_level in zoom_levels:
-        if current_zoom_level < min_zoom or current_zoom_level > max_zoom:
+    for tile_z in zoom_levels:
+        if tile_z < min_zoom or tile_z > max_zoom:
             continue
 
-        logger.debug("Starting zoom level %d" % (current_zoom_level))
+        logger.debug("Starting zoom level %d" % (tile_z))
 
-        t = con.bounding_box_for_zoom_level(current_zoom_level)
+        t = con.bounding_box_for_zoom_level(tile_z)
 
         minX, maxX, minY, maxY = t[0], t[1], t[2], t[3]
 
-        logger.debug(" - Checking zoom level %d, x: %d - %d, y: %d - %d" % (current_zoom_level, minX, maxX, minY, maxY))
+        logger.debug(" - Checking zoom level %d, x: %d - %d, y: %d - %d" % (tile_z, minX, maxX, minY, maxY))
 
-        for current_row in range(minY, maxY+1):
+        for tile_y in range(minY, maxY+1):
             logger.debug("   - Row: %d (%.1f%%)" %
-                (current_row, (float(current_row - minY) / float(maxY - minY)) * 100.0) if minY != maxY else 100.0)
+                (tile_y, (float(tile_y - minY) / float(maxY - minY)) * 100.0) if minY != maxY else 100.0)
 
-            mbtiles_columns = con.columns_for_zoom_level_and_row(current_zoom_level, current_row)
+            mbtiles_columns = con.columns_for_zoom_level_and_row(tile_z, tile_y)
 
-            for current_column in range(minX, maxX+1):
-                if current_column not in mbtiles_columns:
-                    missing_tiles.append([current_zoom_level, current_column, current_row])
+            for tile_x in range(minX, maxX+1):
+                if tile_x not in mbtiles_columns:
+                    if flip_tile_y:
+                        tile_y = flip_y(tile_z, tile_y)
+                    missing_tiles.append([tile_z, tile_x, tile_y])
 
 
     if len(missing_tiles) > 0:
