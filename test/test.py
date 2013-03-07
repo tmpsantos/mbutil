@@ -19,6 +19,30 @@ def test_mbtiles_to_disk():
 
 
 @with_setup(clear_data, clear_data)
+def test_mbtiles_to_disk_with_bad_zoom():
+    fill_mbtiles('test/output/fill.mbtiles', 'test/data/tile.png', min_zoom=0, max_zoom=2, bbox='-180,-90,180,90')
+    assert os.path.exists('test/output/fill.mbtiles')
+    mbtiles_to_disk('test/output/fill.mbtiles', 'test/output', zoom=3)
+    assert os.path.exists('test/output/metadata.json')
+    assert not os.path.exists('test/output/tiles/0/0/0.png')
+    assert not os.path.exists('test/output/tiles/3/0/0.png')
+
+
+@with_setup(clear_data, clear_data)
+def test_mbtiles_to_disk_with_zoom():
+    fill_mbtiles('test/output/fill.mbtiles', 'test/data/tile.png', min_zoom=0, max_zoom=2, bbox='-180,-90,180,90')
+    assert os.path.exists('test/output/fill.mbtiles')
+    mbtiles_to_disk('test/output/fill.mbtiles', 'test/output', zoom=1)
+    assert os.path.exists('test/output/metadata.json')
+    assert os.path.exists('test/output/tiles/1/0/0.png')
+    assert os.path.exists('test/output/tiles/1/0/1.png')
+    assert os.path.exists('test/output/tiles/1/1/0.png')
+    assert os.path.exists('test/output/tiles/1/1/1.png')
+    assert not os.path.exists('test/output/tiles/0/0/0.png')
+    assert not os.path.exists('test/output/tiles/3/0/0.png')
+
+
+@with_setup(clear_data, clear_data)
 def test_mbtiles_to_disk_and_back():
     mbtiles_to_disk('test/data/one_tile.mbtiles', 'test/output')
     assert os.path.exists('test/output/tiles/0/0/0.png')
