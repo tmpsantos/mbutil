@@ -544,6 +544,8 @@ class MBTilesPostgres(MBTilesDatabase):
         # Fetch data in chunks?
         tiles_cur = self.con.cursor()
 
+        chunk = 10000
+
         if min_timestamp > 0 and max_timestamp > 0:
             tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=%s and map.zoom_level<=%s AND map.updated_at>%s AND map.updated_at<%s) AND (images.tile_id = map.tile_id)""",
                 (min_zoom, max_zoom, min_timestamp, max_timestamp))
@@ -557,10 +559,11 @@ class MBTilesPostgres(MBTilesDatabase):
             tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=%s and map.zoom_level<=%s) AND (images.tile_id = map.tile_id)""",
                 (min_zoom, max_zoom))
 
-        t = tiles_cur.fetchone()
-        while t:
-            yield t
-            t = tiles_cur.fetchone()
+        rows = tiles_cur.fetchmany(chunk)
+        while rows:
+            for t in rows:
+                yield t
+            rows = tiles_cur.fetchmany(chunk)
 
         tiles_cur.close()
 
@@ -570,6 +573,8 @@ class MBTilesPostgres(MBTilesDatabase):
         # Fetch data in chunks
         tiles_cur = self.con.cursor()
     
+        chunk = 10000
+
         if min_timestamp > 0 and max_timestamp > 0:
             tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at>%s AND updated_at<%s""",
                 (min_zoom, max_zoom, min_timestamp, max_timestamp))
@@ -583,11 +588,11 @@ class MBTilesPostgres(MBTilesDatabase):
             tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s""",
                 (min_zoom, max_zoom))
 
-        t = tiles_cur.fetchone()
-
-        while t:
-            yield t
-            t = tiles_cur.fetchone()
+        rows = tiles_cur.fetchmany(chunk)
+        while rows:
+            for t in rows:
+                yield t
+            rows = tiles_cur.fetchmany(chunk)
 
         tiles_cur.close()
 
