@@ -594,17 +594,17 @@ class MBTilesPostgres(MBTilesDatabase):
         tiles_cur = iter_con.cursor("tiles_cursor")
     
         if min_timestamp > 0 and max_timestamp > 0:
-            tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at>%s AND updated_at<%s OFFSET %s LIMIT %s""",
-                (min_zoom, max_zoom, min_timestamp, max_timestamp, offset, chunk))
+            tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at>%s AND updated_at<%s""",
+                (min_zoom, max_zoom, min_timestamp, max_timestamp))
         elif min_timestamp > 0:
-            tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at>%s OFFSET %s LIMIT %s""",
-                (min_zoom, max_zoom, min_timestamp, offset, chunk))
+            tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at>%s""",
+                (min_zoom, max_zoom, min_timestamp))
         elif max_timestamp > 0:
-            tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at<%s OFFSET %s LIMIT %s""",
-                (min_zoom, max_zoom, max_timestamp, offset, chunk))
+            tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at<%s""",
+                (min_zoom, max_zoom, max_timestamp))
         else:
-            tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s OFFSET %s LIMIT %s""",
-                (min_zoom, max_zoom, offset, chunk))
+            tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s""",
+                (min_zoom, max_zoom))
 
         t = tiles_cur.fetchone()
         while t:
