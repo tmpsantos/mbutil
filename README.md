@@ -79,6 +79,9 @@ Python installation (requires easy_install)
                             will be overwritten with the imported tiles.
         -m, --merge         Merge two or more databases. The receiver will be
                             created if it doesn't yet exist.
+        -u, --update        Update one database from another, based on updated_at
+                            timestamps. The receiver will be created if it doesn't
+                            yet exist.
         -p, --process       Processes a mbtiles databases. Only usefull together
                             with one or more --execute.
         --expire=DAYS       Remove tiles older than DAYS from the database.
@@ -101,14 +104,14 @@ Python installation (requires easy_install)
         --flip-y            Flip the y tile coordinate during
                             --export/--import/--merge/--convert/--tilelist.
         --min-zoom=MIN_ZOOM
-                            Minimum zoom level for
-                            --export/--import/--merge/--process/--check/--convert.
+                            Minimum zoom level for --export/--import/--merge/--upd
+                            ate/--process/--check/--convert.
         --max-zoom=MAX_ZOOM
-                            Maximum zoom level for
-                            --export/--import/--merge/--process/--check/--convert.
-        --zoom=ZOOM         Zoom level for
-                            --export/--import/--process/--check/--convert.
-                            (Overrides --min-zoom and --max-zoom)
+                            Maximum zoom level for --export/--import/--merge/--upd
+                            ate/--process/--check/--convert.
+        --zoom=ZOOM         Zoom level for --export/--import/--merge/--update/--pr
+                            ocess/--check/--convert. (Overrides --min-zoom and
+                            --max-zoom)
         --min-timestamp=MIN_TIMESTAMP
                             Minimum numerical timestamp for
                             --export/--merge/--process/--test.

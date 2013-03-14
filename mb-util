@@ -9,7 +9,7 @@
 import logging, os, sys
 from optparse import OptionParser, OptionGroup
 
-from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database, check_mbtiles, test_mbtiles, fill_mbtiles, execute_commands_on_mbtiles, convert_string, mbtiles_tilelist, expire_mbtiles
+from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database, check_mbtiles, test_mbtiles, fill_mbtiles, execute_commands_on_mbtiles, convert_string, mbtiles_tilelist, expire_mbtiles, update_mbtiles
 
 if __name__ == '__main__':
 
@@ -71,6 +71,11 @@ if __name__ == '__main__':
         help='''Merge two or more databases. The receiver will be created if it doesn\'t yet exist.''',
         default=False)
 
+    group.add_option("-u", "--update",
+        dest='update_tiles', action="store_true",
+        help='''Update one database from another, based on updated_at timestamps. The receiver will be created if it doesn\'t yet exist.''',
+        default=False)
+
     group.add_option("-p", "--process",
         action="store_true", dest="process", default=False,
         help='''Processes a mbtiles databases. Only usefull together with one or more --execute.''')
@@ -116,19 +121,19 @@ if __name__ == '__main__':
         help='''Commands to execute for each tile image. %s will be replaced with the file name. This argument may be repeated several times and can be used together with --import/--export/--merge/--compact/--process.''')
 
     group.add_option('--flip-y', dest='flip_y',
-        help='''Flip the y tile coordinate during --export/--import/--merge/--convert/--tilelist.''',
+        help='''Flip the y tile coordinate during --export/--import/--merge/--update/--convert/--tilelist.''',
         action="store_true", default=False)
 
     group.add_option('--min-zoom', dest='min_zoom',
-        help='''Minimum zoom level for --export/--import/--merge/--process/--check/--convert.''',
+        help='''Minimum zoom level for --export/--import/--merge/--update/--process/--check/--convert.''',
         type="int", default=0)
 
     group.add_option('--max-zoom', dest='max_zoom',
-        help='''Maximum zoom level for --export/--import/--merge/--process/--check/--convert.''',
+        help='''Maximum zoom level for --export/--import/--merge/--update/--process/--check/--convert.''',
         type="int", default=18)
 
     group.add_option('--zoom', dest='zoom',
-        help='''Zoom level for --export/--import/--process/--check/--convert. (Overrides --min-zoom and --max-zoom)''',
+        help='''Zoom level for --export/--import/--merge/--update/--process/--check/--convert. (Overrides --min-zoom and --max-zoom)''',
         type='int', default=-1)
 
     group.add_option('--min-timestamp', dest='min_timestamp',
@@ -294,6 +299,11 @@ if __name__ == '__main__':
                 sys.stderr.write('The tile image file must exist.\n')
                 sys.exit(1)
             fill_mbtiles(args[0], args[1], **options.__dict__)
+            sys.exit(0)
+
+        if options.update_tiles:
+            update_mbtiles(args[0], args[1], **options.__dict__)
+            optimize_database(args[0], options.auto_commit, options.skip_analyze, options.skip_vacuum, options.journal_mode)
             sys.exit(0)
 
     # merge mbtiles files

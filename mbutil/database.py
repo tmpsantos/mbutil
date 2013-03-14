@@ -53,6 +53,9 @@ class MBTilesDatabase:
     def is_compacted(self):
         return True
 
+    def max_timestamp(self):
+        raise Exception("Not implemented.")
+
     # Returns an array with numbers, e.g. [5, 6, 7]
     def zoom_levels(self):
         raise Exception("Not implemented.")
@@ -213,6 +216,13 @@ class MBTilesSQLite(MBTilesDatabase):
         if self.database_is_compacted == None:
             self.database_is_compacted = (self.cur.execute("SELECT count(name) FROM sqlite_master WHERE type='table' AND (name='images' OR name='map')").fetchone()[0] == 2)
         return self.database_is_compacted
+
+
+    def max_timestamp(self):
+        try:
+            return self.cur.execute("SELECT max(updated_at) FROM map").fetchone()[0]
+        except:
+            return 0
 
 
     def zoom_levels(self):
@@ -493,6 +503,16 @@ class MBTilesPostgres(MBTilesDatabase):
 
     def drop_map_tile_index(self):
         self.cur.execute("""DROP INDEX map_tile_id_index""")
+
+
+    def max_timestamp(self):
+        self.cur.execute("SELECT max(updated_at) FROM map")
+        result = self.cur.fetchone()
+
+        if not result:
+            return 0
+
+        return result[0]
 
 
     def zoom_levels(self):
