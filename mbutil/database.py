@@ -560,73 +560,59 @@ class MBTilesPostgres(MBTilesDatabase):
 
 
     def tiles_with_tile_id(self, min_zoom, max_zoom, min_timestamp, max_timestamp):
-        # TODO: named cursors work only in transactions
-        # Fetch data in chunks?
-        tiles_cur = self.con.cursor()
+        # Second connection to the database, for the named cursor
+        iter_con = psycopg2.connect(self.connect_string)
 
-        chunk = 10000
-        offset = 0
+        tiles_cur = iter_con.cursor("tiles_with_tile_id_cursor")
 
-        while True:
-            if min_timestamp > 0 and max_timestamp > 0:
-                tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=%s and map.zoom_level<=%s AND map.updated_at>%s AND map.updated_at<%s) AND (images.tile_id = map.tile_id) OFFSET %s LIMIT %s""",
-                    (min_zoom, max_zoom, min_timestamp, max_timestamp, offset, chunk))
-            elif min_timestamp > 0:
-                tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=%s and map.zoom_level<=%s AND map.updated_at>%s) AND (images.tile_id = map.tile_id) OFFSET %s LIMIT %s""",
-                    (min_zoom, max_zoom, min_timestamp, offset, chunk))
-            elif max_timestamp > 0:
-                tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=%s and map.zoom_level<=%s AND map.updated_at<%s) AND (images.tile_id = map.tile_id) OFFSET %s LIMIT %s""",
-                    (min_zoom, max_zoom, max_timestamp, offset, chunk))
-            else:
-                tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=%s and map.zoom_level<=%s) AND (images.tile_id = map.tile_id) OFFSET %s LIMIT %s""",
-                    (min_zoom, max_zoom, offset, chunk))
+        if min_timestamp > 0 and max_timestamp > 0:
+            tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=%s and map.zoom_level<=%s AND map.updated_at>%s AND map.updated_at<%s) AND (images.tile_id = map.tile_id)""",
+                (min_zoom, max_zoom, min_timestamp, max_timestamp))
+        elif min_timestamp > 0:
+            tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=%s and map.zoom_level<=%s AND map.updated_at>%s) AND (images.tile_id = map.tile_id)""",
+                (min_zoom, max_zoom, min_timestamp))
+        elif max_timestamp > 0:
+            tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=%s and map.zoom_level<=%s AND map.updated_at<%s) AND (images.tile_id = map.tile_id)""",
+                (min_zoom, max_zoom, max_timestamp))
+        else:
+            tiles_cur.execute("""SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data, images.tile_id FROM map, images WHERE (map.zoom_level>=%s and map.zoom_level<=%s) AND (images.tile_id = map.tile_id)""",
+                (min_zoom, max_zoom))
 
-            offset += chunk
-
+        t = tiles_cur.fetchone()
+        while t:
+            yield t
             t = tiles_cur.fetchone()
 
-            if not t: break
-
-            while t:
-                yield t
-                t = tiles_cur.fetchone()
-
         tiles_cur.close()
+        iter_con.close()
 
 
     def tiles(self, min_zoom, max_zoom, min_timestamp, max_timestamp):
-        # TODO: named cursors work only in transactions
-        # Fetch data in chunks
-        tiles_cur = self.con.cursor()
+        # Second connection to the database, for the named cursor
+        iter_con = psycopg2.connect(self.connect_string)
+
+        tiles_cur = iter_con.cursor("tiles_cursor")
     
-        chunk = 10000
-        offset = 0
+        if min_timestamp > 0 and max_timestamp > 0:
+            tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at>%s AND updated_at<%s OFFSET %s LIMIT %s""",
+                (min_zoom, max_zoom, min_timestamp, max_timestamp, offset, chunk))
+        elif min_timestamp > 0:
+            tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at>%s OFFSET %s LIMIT %s""",
+                (min_zoom, max_zoom, min_timestamp, offset, chunk))
+        elif max_timestamp > 0:
+            tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at<%s OFFSET %s LIMIT %s""",
+                (min_zoom, max_zoom, max_timestamp, offset, chunk))
+        else:
+            tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s OFFSET %s LIMIT %s""",
+                (min_zoom, max_zoom, offset, chunk))
 
-        while True:
-            if min_timestamp > 0 and max_timestamp > 0:
-                tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at>%s AND updated_at<%s OFFSET %s LIMIT %s""",
-                    (min_zoom, max_zoom, min_timestamp, max_timestamp, offset, chunk))
-            elif min_timestamp > 0:
-                tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at>%s OFFSET %s LIMIT %s""",
-                    (min_zoom, max_zoom, min_timestamp, offset, chunk))
-            elif max_timestamp > 0:
-                tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at<%s OFFSET %s LIMIT %s""",
-                    (min_zoom, max_zoom, max_timestamp, offset, chunk))
-            else:
-                tiles_cur.execute("""SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level>=%s AND zoom_level<=%s OFFSET %s LIMIT %s""",
-                    (min_zoom, max_zoom, offset, chunk))
-
-            offset += chunk
-
+        t = tiles_cur.fetchone()
+        while t:
+            yield t
             t = tiles_cur.fetchone()
 
-            if not t: break
-
-            while t:
-                yield t
-                t = tiles_cur.fetchone()
-
         tiles_cur.close()
+        iter_con.close()
 
 
     def delete_tiles(self, min_zoom, max_zoom, min_timestamp, max_timestamp):
