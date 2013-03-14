@@ -47,7 +47,7 @@ def mbtiles_tilelist(mbtiles_file, **kwargs):
             else:
                 if flip_tile_y:
                     tile_y = flip_y(tile_z, tile_y)
-                sys.stdout.write("%d/%d/%d\n" % (current_zoom_level, tile_x, tile_y))
+                sys.stdout.write("%d/%d/%d\n" % (tile_z, tile_x, tile_y))
 
 
     con.close()
