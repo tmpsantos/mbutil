@@ -74,20 +74,21 @@ def update_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     start_time = time.time()
 
     min_timestamp = con1.max_timestamp()
+    if min_timestamp is None: min_timestamp = 0
     max_timestamp = int(time.time())
 
-    total_tiles = con2.tiles_count(min_zoom, max_zoom, min_timestamp, max_timestamp)
+    total_tiles = con2.updates_count(min_zoom, max_zoom, min_timestamp, max_timestamp)
 
     if total_tiles == 0:
         con1.close()
         con2.close()
-        sys.stderr.write('No tiles to merge, exiting...\n')
+        sys.stderr.write('No tiles to update, exiting...\n')
         return
 
-    logger.debug("%d tiles to merge" % (total_tiles))
+    logger.debug("%d tiles to update" % (total_tiles))
     if print_progress:
-        sys.stdout.write("%d tiles to merge\n" % (total_tiles))
-        sys.stdout.write("0 tiles merged (0% @ 0 tiles/sec)")
+        sys.stdout.write("%d tiles to update\n" % (total_tiles))
+        sys.stdout.write("0 tiles updated (0% @ 0 tiles/sec)")
         sys.stdout.flush()
 
 
@@ -96,7 +97,7 @@ def update_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     tmp_images_list = []
     tmp_row_list = []
 
-    for t in con2.tiles_with_tile_id(min_zoom, max_zoom, min_timestamp, max_timestamp):
+    for t in con2.updates(min_zoom, max_zoom, min_timestamp, max_timestamp):
         tile_z = t[0]
         tile_x = t[1]
         tile_y = t[2]
@@ -106,7 +107,7 @@ def update_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
         if flip_tile_y:
             tile_y = flip_y(tile_z, tile_y)
 
-        if tile_id not in known_tile_ids:
+        if tile_id and tile_id not in known_tile_ids:
             tmp_images_list.append( (tile_id, tile_data) )
             known_tile_ids.add(tile_id)
 
