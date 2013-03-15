@@ -93,9 +93,10 @@ def update_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
 
     known_tile_ids = set()
-
     tmp_images_list = []
     tmp_row_list = []
+
+    deleted_tiles_count = 0
 
     for t in con2.updates(min_zoom, max_zoom, min_timestamp, max_timestamp):
         tile_z = t[0]
@@ -106,6 +107,9 @@ def update_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
 
         if flip_tile_y:
             tile_y = flip_y(tile_z, tile_y)
+
+        if tile_id is None:
+            deleted_tiles_count += 1
 
         if tile_id and tile_id not in known_tile_ids:
             tmp_images_list.append( (tile_id, tile_data) )
@@ -143,6 +147,14 @@ def update_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
     if print_progress:
         sys.stdout.write("%d tiles merged (100.0%% @ %.1f tiles/sec)\n" % (count, count / (time.time() - start_time)))
         sys.stdout.flush()
+
+
+    if deleted_tiles_count > 0:
+        logger.info("Deleting %d orphaned image(s)" % (deleted_tiles_count))
+        if print_progress:
+            sys.stdout.write("Deleting %d orphaned image(s)\n" % (deleted_tiles_count))
+            sys.stdout.flush()
+        con1.delete_orphaned_images()
 
 
     con1.close()

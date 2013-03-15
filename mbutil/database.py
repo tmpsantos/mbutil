@@ -89,6 +89,9 @@ class MBTilesDatabase:
     def delete_tiles(self, min_zoom, max_zoom, min_timestamp, max_timestamp):
         raise Exception("Not implemented.")
 
+    def delete_orphaned_images(self):
+        self.cur.execute("DELETE FROM images WHERE tile_id NOT IN (SELECT distinct(tile_id) FROM map)")
+
     # Returns minX, maxX, minY, maxY
     def bounding_box_for_zoom_level(self, zoom_level):
         raise Exception("Not implemented.")
