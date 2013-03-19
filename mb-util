@@ -9,7 +9,7 @@
 import logging, os, sys
 from optparse import OptionParser, OptionGroup
 
-from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database, check_mbtiles, test_mbtiles, fill_mbtiles, execute_commands_on_mbtiles, convert_string, mbtiles_tilelist, expire_mbtiles, update_mbtiles
+from mbutil import mbtiles_to_disk, disk_to_mbtiles, mbtiles_create, merge_mbtiles, optimize_database, check_mbtiles, test_mbtiles, fill_mbtiles, execute_commands_on_mbtiles, convert_string, mbtiles_tilelist, expire_mbtiles, expire_tiles_bbox, update_mbtiles
 
 if __name__ == '__main__':
 
@@ -83,6 +83,11 @@ if __name__ == '__main__':
     group.add_option("--expire", metavar="DAYS",
         dest="expire", type="int", default="0",
         help='''Remove tiles older than DAYS from the database.''')
+
+    group.add_option("--expire-tiles",
+        dest='expire_tiles', action="store_true",
+        help='''Remove tiles within a bounding box from the database (must be used with --bbox/--tile-bbox and --zoom/--min-zoom/--max-zoom).''',
+        default=False)
 
     group.add_option("--check",
         dest='check', action="store_true",
@@ -283,6 +288,10 @@ if __name__ == '__main__':
 
         if options.expire > 0:
             expire_mbtiles(args[0], **options.__dict__)
+            sys.exit(0)
+
+        if options.expire_tiles:
+            expire_tiles_bbox(args[0], **options.__dict__)
             sys.exit(0)
 
         # Create an empty mbtiles db?

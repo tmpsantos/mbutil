@@ -89,6 +89,12 @@ class MBTilesDatabase:
     def delete_tiles(self, min_zoom, max_zoom, min_timestamp, max_timestamp):
         raise Exception("Not implemented.")
 
+    def expire_tiles(self, min_zoom, max_zoom, min_timestamp, max_timestamp):
+        raise Exception("Not implemented.")
+
+    def expire_tile(self, tile_z, tile_x, tile_y):
+        raise Exception("Not implemented.")
+
     def delete_orphaned_images(self):
         self.cur.execute("DELETE FROM images WHERE tile_id NOT IN (SELECT distinct(tile_id) FROM map)")
 
@@ -397,6 +403,44 @@ class MBTilesSQLite(MBTilesDatabase):
         else:
             self.cur.execute("""DELETE FROM tiles WHERE zoom_level>=? AND zoom_level<=?""",
                 (min_zoom, max_zoom))
+
+
+    def expire_tiles(self, min_zoom, max_zoom, min_timestamp, max_timestamp):
+        if not self.is_compacted():
+            self.delete_tiles(min_zoom, max_zoom, min_timestamp, max_timestamp)
+            return
+
+        if min_timestamp > 0 and max_timestamp > 0:
+            self.cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?)""",
+                (min_zoom, max_zoom, min_timestamp, max_timestamp))
+            self.cur.execute("""UPDATE map SET tile_id=NULL, updated_at=? WHERE zoom_level>=? AND zoom_level<=? AND updated_at>? AND updated_at<?""",
+                (int(time.time()), min_zoom, max_zoom, min_timestamp, max_timestamp))
+        elif min_timestamp > 0:
+            self.cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at>?)""",
+                (min_zoom, max_zoom, min_timestamp))
+            self.cur.execute("""UPDATE map SET tile_id=NULL, updated_at=? WHERE zoom_level>=? AND zoom_level<=? AND updated_at>?""",
+                (int(time.time()), min_zoom, max_zoom, min_timestamp))
+        elif max_timestamp > 0:
+            self.cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=? AND updated_at<?)""",
+                (min_zoom, max_zoom, max_timestamp))
+            self.cur.execute("""UPDATE map SET tile_id=NULL, updated_at=? WHERE zoom_level>=? AND zoom_level<=? AND updated_at<?""",
+                (int(time.time()), min_zoom, max_zoom, max_timestamp))
+        else:
+            self.cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=? AND zoom_level<=?)""",
+                (min_zoom, max_zoom))
+            self.cur.execute("""UPDATE map SET tile_id=NULL, updated_at=? WHERE zoom_level>=? AND zoom_level<=?""",
+                (int(time.time()), min_zoom, max_zoom))
+
+
+    def expire_tile(self, tile_z, tile_x, tile_y):
+        if self.is_compacted():
+            self.cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level=? AND tile_column=? AND tile_row=?)""",
+                (tile_z, tile_x, tile_y))
+            self.cur.execute("""UPDATE map SET tile_id=NULL, updated_at=? WHERE zoom_level=? AND tile_column=? AND tile_row=?""",
+                (int(time.time()), tile_z, tile_x, tile_y))
+        else:
+            self.cur.execute("""DELETE FROM tiles WHERE zoom_level=? AND tile_column=? AND tile_row=?""",
+                (tile_z, tile_x, tile_y))
 
 
     def bounding_box_for_zoom_level(self, zoom_level):
@@ -712,6 +756,36 @@ class MBTilesPostgres(MBTilesDatabase):
             self.cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=%s AND zoom_level<=%s)""",
                 (min_zoom, max_zoom))
             self.cur.execute("""DELETE FROM map WHERE zoom_level>=%s AND zoom_level<=%s""", (min_zoom, max_zoom))
+
+
+    def expire_tiles(self, min_zoom, max_zoom, min_timestamp, max_timestamp):
+        if min_timestamp > 0 and max_timestamp > 0:
+            self.cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at>%s AND updated_at<%s)""",
+                (min_zoom, max_zoom, min_timestamp, max_timestamp))
+            self.cur.execute("""UPDATE map SET tile_id=NULL, updated_at=%s WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at>%s AND updated_at<%s""",
+                (int(time.time()), min_zoom, max_zoom, min_timestamp, max_timestamp))
+        elif min_timestamp > 0:
+            self.cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at>%s)""",
+                (min_zoom, max_zoom, min_timestamp))
+            self.cur.execute("""UPDATE map SET tile_id=NULL, updated_at=%s WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at>%s""",
+                (int(time.time()), min_zoom, max_zoom, min_timestamp))
+        elif max_timestamp > 0:
+            self.cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at<%s)""",
+                (min_zoom, max_zoom, max_timestamp))
+            self.cur.execute("""UPDATE map SET tile_id=NULL, updated_at=%s WHERE zoom_level>=%s AND zoom_level<=%s AND updated_at<%s""",
+                (int(time.time()), min_zoom, max_zoom, max_timestamp))
+        else:
+            self.cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level>=%s AND zoom_level<=%s)""",
+                (min_zoom, max_zoom))
+            self.cur.execute("""UPDATE map SET tile_id=NULL, updated_at=%s WHERE zoom_level>=%s AND zoom_level<=%s""",
+                (int(time.time()), min_zoom, max_zoom))
+
+
+    def expire_tile(self, tile_z, tile_x, tile_y):
+        self.cur.execute("""DELETE FROM images WHERE tile_id IN (SELECT tile_id FROM map WHERE zoom_level=%s AND tile_column=%s AND tile_row=%s)""",
+            (tile_z, tile_x, tile_y))
+        self.cur.execute("""UPDATE map SET tile_id=NULL, updated_at=%s WHERE zoom_level=%s AND tile_column=%s AND tile_row=%s""",
+            (int(time.time()), tile_z, tile_x, tile_y))
 
 
     def bounding_box_for_zoom_level(self, zoom_level):
