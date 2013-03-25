@@ -587,6 +587,29 @@ class MBTilesPostgres(MBTilesDatabase):
         if self.cur.fetchone()[0] == 0:
             self.cur.execute("""CREATE UNIQUE INDEX images_id_index ON images (tile_id)""")
 
+        # From http://www.postgresql.org/docs/current/static/plpgsql-control-structures.html#PLPGSQL-UPSERT-EXAMPLE
+        self.cur.execute("SELECT count(*) FROM pg_proc WHERE proname = 'update_map_proc'")
+        if self.cur.fetchone()[0] == 0:
+            self.cur.execute("""
+                CREATE OR REPLACE FUNCTION update_map_proc(tile_z INTEGER, tile_x INTEGER, tile_y INTEGER, key VARCHAR,
+            updated_timestamp INTEGER) RETURNS VOID AS
+                $$
+                BEGIN
+                    LOOP
+                        UPDATE map SET tile_id = key, updated_at = updated_timestamp WHERE zoom_level = tile_z AND tile_column = tile_x and tile_row = tile_y;
+                        IF found THEN
+                            RETURN;
+                        END IF;
+                        BEGIN
+                            INSERT INTO map(zoom_level, tile_column, tile_row, tile_id, updated_at) VALUES (tile_z, tile_x, tile_y, key, updated_timestamp);
+                            RETURN;
+                        EXCEPTION WHEN unique_violation THEN
+                        END;
+                    END LOOP;
+                END;
+                $$
+                LANGUAGE plpgsql""")
+
 
     def create_map_tile_index(self):
         self.cur.execute("SELECT count(*) FROM pg_class WHERE relname = 'map_tile_id_index'")
@@ -813,13 +836,15 @@ class MBTilesPostgres(MBTilesDatabase):
 
 
     def insert_tile_to_map(self, zoom_level, tile_column, tile_row, tile_id, replace_existing=True):
-        try:
-            self.cur.execute("""INSERT INTO map (zoom_level, tile_column, tile_row, tile_id, updated_at) VALUES (%s, %s, %s, %s, %s)""",
+        if replace_existing:
+            self.cur.execute("""SELECT update_map_proc(%s, %s, %s, %s::varchar, %s)""",
                 (zoom_level, tile_column, tile_row, tile_id, int(time.time())))
-        except:
-            if replace_existing:
-                self.cur.execute("""UPDATE map SET tile_id=%s, updated_at=%s WHERE zoom_level=%s AND tile_column=%s AND tile_row=%s""",
-                    (tile_id, int(time.time()), zoom_level, tile_column, tile_row))
+        else:
+            try:
+                self.cur.execute("""INSERT INTO map (zoom_level, tile_column, tile_row, tile_id, updated_at) VALUES (%s, %s, %s, %s, %s)""",
+                    (zoom_level, tile_column, tile_row, tile_id, int(time.time())))
+            except:
+                pass
 
 
     def insert_tiles_to_map(self, tile_list):
