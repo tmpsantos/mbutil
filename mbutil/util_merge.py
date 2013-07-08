@@ -34,7 +34,8 @@ def process_tiles(pool, tiles_to_process, con, count, total_tiles, start_time, p
                 tmp_row_list.append( (tile_z, tile_x, tile_y, new_tile_id, int(time.time())) )
         else:
             if delete_vanished_tiles:
-                logger.debug("Skipping vanished tile %s" % (tile_id, ))
+                logger.debug("Deleting vanished tile %s" % (tile_id, ))
+                con.expire_tile(tile_z, tile_x, tile_y)
             else:
                 logger.error("tile %s vanished!" % (tile_id, ))
 
