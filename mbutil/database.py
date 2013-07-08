@@ -855,7 +855,7 @@ class MBTilesPostgres(MBTilesDatabase):
     def update_tile(self, old_tile_id, new_tile_id, tile_data):
         try:
             self.cur.execute("""INSERT INTO images (tile_id, tile_data) VALUES(%s, %s)""",
-                (new_tile_id, sqlite3.Binary(tile_data), new_tile_id))
+                (new_tile_id, psycopg2.Binary(tile_data)))
         except:
             pass
 
