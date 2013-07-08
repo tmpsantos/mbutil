@@ -62,7 +62,7 @@ def parse_and_convert_tile_bbox(conversion_string, flip_tile_y):
     # z/x/y
     match = re.match(r'(\d+)/(\d+)/(\d+)', conversion_string, re.I)
     if not match:
-        raise Exception("Wrong bounding box format")
+        raise Exception("Wrong bounding box format (z/x/y): %s" % (conversion_string))
 
     return convert_tile_to_bbox(int(match.group(1)), int(match.group(2)), int(match.group(3)), flip_tile_y)
 
@@ -71,6 +71,6 @@ def parse_bbox(conversion_string):
     # minx,miny,maxx,maxy
     match = re.match(r'([-0-9\.]+),([-0-9\.]+),([-0-9\.]+),([-0-9\.]+)', conversion_string, re.I)
     if not match:
-        raise Exception("Wrong bounding box format")
+        raise Exception("Wrong bounding box format (minx,miny,maxx,maxy): %s" % (conversion_string))
 
     return [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
