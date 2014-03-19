@@ -315,6 +315,15 @@ class MBTilesSQLite(MBTilesDatabase):
         tiles_cur.close()
 
 
+    def tile(self, zoom, tile_column, tile_row):
+        tiles_cur = self.con.cursor()
+
+        tiles_cur.execute("""SELECT images.tile_id, images.tile_data FROM map, images WHERE (map.zoom_level=? AND map.tile_column=? AND map.tile_row=?) AND (map.tile_id IS NOT NULL) AND (images.tile_id = map.tile_id)""",
+                (zoom, tile_column, tile_row))
+
+        return tiles_cur.fetchone()
+
+
     def tiles(self, min_zoom, max_zoom, min_timestamp, max_timestamp):
         tiles_cur = self.con.cursor()
 

@@ -3,6 +3,7 @@ import sqlite3, uuid, sys, logging, time, os, json, zlib, hashlib, tempfile, mul
 from util import mbtiles_connect, execute_commands_on_tile, process_tile, flip_y, prettify_connect_string
 from util_check import check_mbtiles
 from multiprocessing import Pool
+from wand.image import Image
 
 logger = logging.getLogger(__name__)
 
@@ -239,14 +240,35 @@ def merge_mbtiles(mbtiles_file1, mbtiles_file2, **kwargs):
             tile_data = str(t[3])
             tile_id = t[4]
 
+            use_destination_tile = False
+
             if flip_tile_y:
                 tile_y = flip_y(tile_z, tile_y)
 
-            if tile_id not in known_tile_ids:
+            destination_tile = con1.tile(tile_z, tile_x, tile_y)
+            if destination_tile:
+                destination_id = destination_tile[0]
+                destination_data = str(destination_tile[1])
+
+                if destination_data == tile_data:
+                    tile_id = destination_id
+                    use_destination_tile = True
+                else:
+                    image_bg = Image()
+                    image_bg.read(blob=destination_data)
+                    image_fg = Image()
+                    image_fg.read(blob=tile_data)
+                    image_bg.composite(image_fg, left=0, top=0)
+
+                    tile_id = os.urandom(16).encode('hex')
+                    tile_data = image_bg.make_blob(format="png")
+
+            if not use_destination_tile and tile_id not in known_tile_ids:
                 tmp_images_list.append( (tile_id, tile_data) )
                 known_tile_ids.add(tile_id)
 
-            tmp_row_list.append( (tile_z, tile_x, tile_y, tile_id, int(time.time())) )
+            if not use_destination_tile:
+                tmp_row_list.append( (tile_z, tile_x, tile_y, tile_id, int(time.time())) )
 
             count = count + 1
             if (count % 100) == 0:
